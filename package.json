@@ -1,11 +1,24 @@
 {
-  "name": "shadcntest",
-  "version": "0.1.0",
+  "name": "bunext",
+  "description": "Bunext - A Next.js 15 template with Tailwind CSS, shadcn ui and Bun with some utilities built in",
+  "author": "Ard Astroid <ardastroid@gmail.com>",
+  "version": "2.0.0",
   "private": true,
+  "keywords": [
+    "next.js",
+    "react",
+    "typescript",
+    "tailwindcss",
+    "shadcn-ui",
+    "bun",
+    "template",
+    "starter"
+  ],
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "preview": "next build && next start",
     "lint": "eslint"
   },
   "dependencies": {
@@ -25,6 +38,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "babel-plugin-react-compiler": "^1.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "tailwindcss": "^4",
