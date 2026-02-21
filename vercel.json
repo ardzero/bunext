@@ -1,6 +1,0 @@
-{
-  "installCommand": "bun install",
-  "buildCommand": "bun run build",
-  "framework": "nextjs",
-  "redirects": [{ "source": "/home", "destination": "/" }]
-}
