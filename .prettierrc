@@ -1,0 +1,9 @@
+{
+	"plugins": ["prettier-plugin-tailwindcss"],
+	"tailwindFunctions": ["clsx", "cva", "cn"],
+	"tailwindStylesheet": "./src/styles/globals.css",
+	"tailwindAttributes": ["class", "className"],
+	"useTabs": true,
+	"tabWidth": 2,
+	"semi": true
+}
