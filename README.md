@@ -1,4 +1,4 @@
-> **Warning:** This branch is currently deprecated. If you’d like to maintain it, please open a pull request.
+> ⚠️**Warning:** This branch is currently deprecated. If you’d like to maintain it, please open a pull request.
 # Bunext
 A Next.js 15 app with Tailwind CSS template. [Live deployment](https://bunext.ardastroid.com/)
 
