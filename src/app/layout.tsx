@@ -14,6 +14,7 @@ import { fonts } from "@/styles/fonts";
 import { RootProvider } from "@/components/providers/root-provider";
 // components
 import { ModeToggle } from "@/components/ModeToggle";
+import { FeatureFlag } from "@/components/utils/featureFlag";
 
 export default function RootLayout({
 	children,
@@ -25,10 +26,14 @@ export default function RootLayout({
 			<body className={cn("font-sans antialiased", fonts)}>
 				<RootProvider>
 					{children}
-					<ModeToggle
-						className="fixed bottom-3 left-3 z-50"
-						iconClassName="size-[11px]"
-					/>
+
+					{/* checks if theme and theme button feature flags are enabled */}
+					<FeatureFlag featureFlag={["NEXT_THEME", "THEME_BUTTON"]}>
+						<ModeToggle
+							className="fixed bottom-3 left-3 z-50"
+							iconClassName="size-[11px]"
+						/>
+					</FeatureFlag>
 				</RootProvider>
 			</body>
 		</html>
