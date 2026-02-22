@@ -1,5 +1,4 @@
 "use client";
-
 import { LaptopIcon, Moon, Sun } from "lucide-react";
 import {
 	Tooltip,
@@ -30,6 +29,7 @@ export function ModeToggle({
 	iconClassName?: string;
 }) {
 	const { theme, setTheme } = useTheme();
+
 	const resolvedTheme = (theme ?? "system") as ThemeKey;
 	// indicator position from left side
 	const left = THEME_INDICATOR_POSITION[resolvedTheme];
@@ -47,8 +47,9 @@ export function ModeToggle({
 				className="absolute inset-y-0 w-1/3 bg-foreground/10"
 				initial={false}
 				animate={{ left }}
-				transition={{ duration: 0.2, ease: "easeOut" }}
+				transition={{ type: "spring", stiffness: 400, damping: 30 }}
 			/>
+
 			<div className="relative flex min-w-0 flex-1">
 				<Tooltip>
 					<TooltipTrigger asChild>
