@@ -5,7 +5,7 @@ import "@/styles/globals.css";
 // providers
 import { RootProvider } from "@/components/providers/root-provider";
 // components
-import { ModeToggle } from "@/components/ThemeToggle";
+import { ModeToggle } from "@/components/ModeToggle";
 
 // fonts
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
@@ -31,12 +31,15 @@ export default function RootLayout({
 	children: React.ReactNode;
 }>) {
 	return (
-		<html lang="en" className={inter.variable}>
+		<html lang="en" className={inter.variable} suppressHydrationWarning>
 			<body
 				className={`${geistSans.variable} ${geistMono.variable} antialiased`}
 			>
 				<RootProvider>
-					<ModeToggle />
+					<ModeToggle
+						className="fixed bottom-3 left-3 z-50"
+						iconClassName="size-[11px]"
+					/>
 					{children}
 				</RootProvider>
 			</body>
