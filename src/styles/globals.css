@@ -47,16 +47,6 @@
 	--radius-4xl: calc(var(--radius) + 16px);
 }
 
-/* ModeToggle: animation survives next-themes disableTransitionOnChange */
-@keyframes mode-toggle-slide {
-	from {
-		left: var(--mode-toggle-from, 0%);
-	}
-	to {
-		left: var(--mode-toggle-to, 0%);
-	}
-}
-
 :root {
 	--background: oklch(1 0 0);
 	--foreground: oklch(0.145 0 0);

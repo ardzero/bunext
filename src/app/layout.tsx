@@ -36,11 +36,11 @@ export default function RootLayout({
 				className={`${geistSans.variable} ${geistMono.variable} antialiased`}
 			>
 				<RootProvider>
+					{children}
 					<ModeToggle
 						className="fixed bottom-3 left-3 z-50"
 						iconClassName="size-[11px]"
 					/>
-					{children}
 				</RootProvider>
 			</body>
 		</html>
