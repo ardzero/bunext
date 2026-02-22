@@ -1,11 +1,16 @@
-import { Roboto as FontSans } from 'next/font/google'
+import { Roboto, Geist_Mono } from 'next/font/google'
 import localFont from 'next/font/local'
 
-const fontSans = FontSans({
+const RobotoSans = Roboto({
   subsets: ['latin'],
   weight: ['400', '500', '700'],
   variable: '--font-sans',
 })
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
 
 const ClashDisplay = localFont({
   src: [
@@ -19,8 +24,9 @@ const ClashDisplay = localFont({
   display: 'swap',
 })
 
+
 // array of fonts
-export const fontList = [fontSans, ClashDisplay]
+const fontList = [RobotoSans, geistMono, ClashDisplay]
 // add font variable names to tailwind.config.ts aswell
 
 // Export class names for root layout
