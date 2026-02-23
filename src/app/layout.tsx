@@ -23,7 +23,7 @@ export default function RootLayout({
 }>) {
 	return (
 		<html lang="en" suppressHydrationWarning>
-			<body className={cn("font-sans antialiased", fonts)}>
+			<body className={cn("font-sans", fonts)}>
 				<RootProvider>
 					{children}
 
