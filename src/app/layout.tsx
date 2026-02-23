@@ -15,6 +15,7 @@ import { RootProvider } from "@/components/providers/root-provider";
 // components
 import { ModeToggle } from "@/components/ModeToggle";
 import { FeatureFlag } from "@/components/utils/featureFlag";
+import { ScrollToTopButton } from "@/components/utils/TopButton";
 
 export default function RootLayout({
 	children,
@@ -34,6 +35,7 @@ export default function RootLayout({
 							iconClassName="size-[11px]"
 						/>
 					</FeatureFlag>
+					<ScrollToTopButton className="fixed right-4 bottom-4 z-50" />
 				</RootProvider>
 			</body>
 		</html>
