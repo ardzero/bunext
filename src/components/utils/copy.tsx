@@ -32,9 +32,6 @@ export function CopyButton({
 	const handleCopy = async () => {
 		try {
 			await navigator.clipboard.writeText(copyContent);
-			toast.success("Copied!", {
-				description: `Content: ${copyContent}`,
-			});
 			setCopied(true);
 			setTimeout(() => setCopied(false), 1500);
 		} catch (err: unknown) {

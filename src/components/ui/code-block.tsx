@@ -6,6 +6,27 @@ import { codeToHtml, type ShikiTransformer } from "shiki";
 import { cn } from "@/lib/utils";
 import { CopyButton } from "@/components/utils/copy";
 
+const CODE_BLOCK_THEME = {
+	shiki: {
+		light: "vitesse-light",
+		dark: "vitesse-dark",
+	},
+	lineColors: {
+		highlight: {
+			light: { bg: "#bfdbfe99", border: "#3b82f6", text: "#1e40af" },
+			dark: { bg: "#1d4ed83d", border: "#60a5fa", text: "#93c5fd" },
+		},
+		added: {
+			light: { bg: "#bbf7d099", border: "#16a34a", text: "#166534" },
+			dark: { bg: "#22c55e10", border: "#22c55e", text: "#4ade80" },
+		},
+		removed: {
+			light: { bg: "#fecaca99", border: "#ef4444", text: "#991b1b" },
+			dark: { bg: "#ef444410", border: "#ef4444", text: "#f87171" },
+		},
+	},
+} as const;
+
 type CodeBlockProps = {
 	code: string;
 	language?: string;
@@ -63,6 +84,7 @@ export function CodeBlock({
 	const [html, setHtml] = useState<string>("");
 	const [loaded, setLoaded] = useState(false);
 	const { resolvedTheme } = useTheme();
+	const colorScheme = resolvedTheme === "light" ? "light" : "dark";
 
 	const hasLineMarkers =
 		!!highlightLines?.length || !!addedLines?.length || !!removedLines?.length;
@@ -82,13 +104,12 @@ export function CodeBlock({
 	);
 
 	const highlight = useCallback(async () => {
-		const colorScheme = resolvedTheme === "light" ? "light" : "dark";
 		try {
 			const out = await codeToHtml(code, {
 				lang: language,
 				themes: {
-					light: "vitesse-light",
-					dark: "vitesse-dark",
+					light: CODE_BLOCK_THEME.shiki.light,
+					dark: CODE_BLOCK_THEME.shiki.dark,
 				},
 				defaultColor: colorScheme,
 				structure: "classic",
@@ -100,7 +121,7 @@ export function CodeBlock({
 		} finally {
 			setLoaded(true);
 		}
-	}, [code, language, transformer, resolvedTheme]);
+	}, [code, language, transformer, colorScheme]);
 
 	useEffect(() => {
 		highlight();
@@ -113,23 +134,24 @@ export function CodeBlock({
 	return (
 		<div
 			className={cn(
-				"code-block relative overflow-hidden rounded-lg border bg-gray-50 text-[13px] shadow-sm dark:border-white/8 dark:bg-[#111]",
-				"border-gray-200",
+				"code-block relative overflow-hidden rounded-lg border border-border bg-card text-[13px] shadow-sm",
 				className,
 			)}
 			data-slot="code-block"
 		>
 			{/* Header bar */}
 			{(filename || (showCopyButton && filename)) && (
-				<div className="flex items-center border-b border-gray-200 bg-gray-100/80 px-4 py-2 dark:border-white/8 dark:bg-white/3">
-					<span className="font-mono text-xs text-gray-600 dark:text-[#888]">{filename}</span>
+				<div className="flex items-center border-b border-border bg-muted px-4 py-2">
+					<span className="font-mono text-xs text-muted-foreground">
+						{filename}
+					</span>
 					{showCopyButton && (
 						<div className="ml-auto">
 							<CopyButton
 								copyContent={code}
 								variant="ghost"
 								size="icon-xs"
-								className="text-gray-500 hover:text-gray-700 dark:text-[#666] dark:hover:text-[#999]"
+								className="text-muted-foreground hover:text-foreground"
 								iconClassName="size-3.5!"
 							/>
 						</div>
@@ -151,31 +173,39 @@ export function CodeBlock({
 							"[&_code]:[counter-reset:line]",
 							"[&_.line]:[counter-increment:line]",
 							"[&_.line]:before:inline-block [&_.line]:before:w-[3.5ch] [&_.line]:before:shrink-0 [&_.line]:before:pr-4 [&_.line]:before:pl-4 [&_.line]:before:text-right [&_.line]:before:tabular-nums [&_.line]:before:content-[counter(line)] [&_.line]:before:select-none",
-							"[&_.line]:before:text-gray-400 dark:[&_.line]:before:text-[#555]",
+							"[&_.line]:before:text-muted-foreground",
 						],
 						!showLineNumbers && "[&_.line]:pl-4",
-						// highlighted line
-						"[&_.highlighted]:relative [&_.highlighted]:before:border-l-2",
-						"[&_.highlighted]:bg-blue-200/60 [&_.highlighted]:before:border-blue-500 [&_.highlighted]:before:text-blue-800 dark:[&_.highlighted]:bg-[#1d4ed8]/12 dark:[&_.highlighted]:before:border-[#3b82f6] dark:[&_.highlighted]:before:text-[#6b8acd]",
-						// added line
-						"[&_.added]:relative [&_.added]:before:border-l-2",
-						"[&_.added]:bg-green-200/60 [&_.added]:before:border-green-600 [&_.added]:before:text-green-800 dark:[&_.added]:bg-[#22c55e]/10 dark:[&_.added]:before:border-[#22c55e] dark:[&_.added]:before:text-[#4ade80]",
-						// removed line
-						"[&_.removed]:relative [&_.removed]:before:border-l-2",
-						"[&_.removed]:bg-red-200/60 [&_.removed]:before:border-red-500 [&_.removed]:before:text-red-800 dark:[&_.removed]:bg-[#ef4444]/10 dark:[&_.removed]:before:border-[#ef4444] dark:[&_.removed]:before:text-[#f87171]",
+						// line markers (colors from CSS vars set below)
+						"[&_.highlighted]:relative [&_.highlighted]:before:border-l-2 [&_.highlighted]:bg-(--cb-hl-bg) [&_.highlighted]:before:border-(--cb-hl-border) [&_.highlighted]:before:text-(--cb-hl-text)",
+						"[&_.added]:relative [&_.added]:before:border-l-2 [&_.added]:bg-(--cb-add-bg) [&_.added]:before:border-(--cb-add-border) [&_.added]:before:text-(--cb-add-text)",
+						"[&_.removed]:relative [&_.removed]:before:border-l-2 [&_.removed]:bg-(--cb-rem-bg) [&_.removed]:before:border-(--cb-rem-border) [&_.removed]:before:text-(--cb-rem-text)",
 					)}
+					style={
+						{
+							"--cb-hl-bg": CODE_BLOCK_THEME.lineColors.highlight[colorScheme].bg,
+							"--cb-hl-border": CODE_BLOCK_THEME.lineColors.highlight[colorScheme].border,
+							"--cb-hl-text": CODE_BLOCK_THEME.lineColors.highlight[colorScheme].text,
+							"--cb-add-bg": CODE_BLOCK_THEME.lineColors.added[colorScheme].bg,
+							"--cb-add-border": CODE_BLOCK_THEME.lineColors.added[colorScheme].border,
+							"--cb-add-text": CODE_BLOCK_THEME.lineColors.added[colorScheme].text,
+							"--cb-rem-bg": CODE_BLOCK_THEME.lineColors.removed[colorScheme].bg,
+							"--cb-rem-border": CODE_BLOCK_THEME.lineColors.removed[colorScheme].border,
+							"--cb-rem-text": CODE_BLOCK_THEME.lineColors.removed[colorScheme].text,
+						} as React.CSSProperties
+					}
 					dangerouslySetInnerHTML={{ __html: fallbackHtml }}
 				/>
 			</div>
 
 			{/* Floating copy button when no filename header */}
 			{showCopyButton && !filename && (
-				<div className="absolute right-2 top-2">
+				<div className="absolute top-2 right-2">
 					<CopyButton
 						copyContent={code}
 						variant="ghost"
 						size="icon-xs"
-						className="text-gray-500 hover:bg-gray-200 hover:text-gray-700 dark:text-[#666] dark:hover:bg-white/8 dark:hover:text-[#999]"
+						className="text-muted-foreground hover:bg-muted hover:text-foreground"
 						iconClassName="size-3.5!"
 					/>
 				</div>
