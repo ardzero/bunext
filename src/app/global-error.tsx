@@ -3,13 +3,6 @@
 import { RefreshCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import "@/styles/globals.css";
-import { Metadata } from "next";
-import { siteData } from "@/lib/data/siteData";
-
-export const metadata: Metadata = {
-	title: `:( Error / ${siteData.name}`,
-	description: `An Error Occurred :( // ${siteData.name}`,
-};
 
 export default function GlobalError({
 	error,
