@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
+import { siteData } from "../data/siteData";
 
 export function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs))
@@ -29,6 +30,28 @@ export function isEmailValid(email: string): boolean {
     const regex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
     return regex.test(email);
 }
+
+
+// returns the base url with https:// if it doesn't have it
+export const getBaseUrl = (path?: string): string => {
+    let url = siteData.baseUrl;
+    const hasProtocol = /^https?:\/\//.test(url);
+
+    // Remove trailing slash if it exists
+    if (url.endsWith("/")) url = url.slice(0, -1);
+
+    // Add protocol if missing
+    if (!hasProtocol) url = `https://${url}`;
+
+    // if path is passed, add it to the base url
+    if (path) {
+        // Remove leading slash from path to avoid double slashes
+        const cleanPath = path.startsWith("/") ? path.slice(1) : path;
+        url = `${url}/${cleanPath}`;
+    }
+    return url;
+};
+
 
 export function nullChecker(string: any, optinalPassedString?: string) {
     if (
