@@ -6,11 +6,13 @@ import { codeToHtml, type ShikiTransformer } from "shiki";
 import { cn } from "@/lib/utils";
 import { CopyButton } from "@/components/utils/copy";
 
+//
 const CODE_BLOCK_THEME = {
 	shiki: {
-		light: "vitesse-light",
-		dark: "vitesse-dark",
+		light: "github-light",
+		dark: "github-dark-default",
 	},
+	useShikiBg: false,
 	lineColors: {
 		highlight: {
 			light: { bg: "#bfdbfe99", border: "#3b82f6", text: "#1e40af" },
@@ -37,6 +39,7 @@ type CodeBlockProps = {
 	showCopyButton?: boolean;
 	showLineNumbers?: boolean;
 	className?: string;
+	useShikiBg?: boolean;
 };
 
 const DEFAULT_LANG = "text";
@@ -80,11 +83,15 @@ export function CodeBlock({
 	showCopyButton = true,
 	showLineNumbers = true,
 	className,
+	useShikiBg = CODE_BLOCK_THEME.useShikiBg,
 }: CodeBlockProps) {
 	const [html, setHtml] = useState<string>("");
 	const [loaded, setLoaded] = useState(false);
 	const { resolvedTheme } = useTheme();
 	const colorScheme = resolvedTheme === "light" ? "light" : "dark";
+
+	const lineCount = code.trim().split(/\r?\n/).length;
+	const effectiveShowLineNumbers = showLineNumbers && lineCount > 1;
 
 	const hasLineMarkers =
 		!!highlightLines?.length || !!addedLines?.length || !!removedLines?.length;
@@ -160,38 +167,49 @@ export function CodeBlock({
 			)}
 
 			{/* Code area */}
-			<div className="overflow-x-auto">
+			<div
+				className={cn("overflow-x-auto", showCopyButton && !filename && "pr-6")}
+			>
 				<div
 					className={cn(
 						// pre/code resets
-						"[&_pre]:m-0 [&_pre]:rounded-none [&_pre]:border-0 [&_pre]:bg-transparent [&_pre]:px-0 [&_pre]:py-2",
+						"[&_pre]:m-0 [&_pre]:rounded-none [&_pre]:border-0 [&_pre]:px-0 [&_pre]:py-2",
+						!useShikiBg && "[&_code]:bg-transparent! [&_pre]:bg-transparent!",
 						"[&_code]:block [&_code]:w-fit [&_code]:min-w-full [&_code]:font-mono",
 						// .line base — compact line spacing (Geist-like)
 						"[&_.line]:min-h-[1.05em] [&_.line]:items-center [&_.line]:pr-4 [&_.line]:leading-[1.05em]",
-						// line numbers via CSS counter
-						showLineNumbers && [
+						// line numbers via CSS counter (hidden for single line)
+						effectiveShowLineNumbers && [
 							"[&_code]:[counter-reset:line]",
 							"[&_.line]:[counter-increment:line]",
 							"[&_.line]:before:inline-block [&_.line]:before:w-[3.5ch] [&_.line]:before:shrink-0 [&_.line]:before:pr-4 [&_.line]:before:pl-4 [&_.line]:before:text-right [&_.line]:before:tabular-nums [&_.line]:before:content-[counter(line)] [&_.line]:before:select-none",
 							"[&_.line]:before:text-muted-foreground",
 						],
-						!showLineNumbers && "[&_.line]:pl-4",
+						!effectiveShowLineNumbers && "[&_.line]:pl-4",
 						// line markers (colors from CSS vars set below)
-						"[&_.highlighted]:relative [&_.highlighted]:before:border-l-2 [&_.highlighted]:bg-(--cb-hl-bg) [&_.highlighted]:before:border-(--cb-hl-border) [&_.highlighted]:before:text-(--cb-hl-text)",
-						"[&_.added]:relative [&_.added]:before:border-l-2 [&_.added]:bg-(--cb-add-bg) [&_.added]:before:border-(--cb-add-border) [&_.added]:before:text-(--cb-add-text)",
-						"[&_.removed]:relative [&_.removed]:before:border-l-2 [&_.removed]:bg-(--cb-rem-bg) [&_.removed]:before:border-(--cb-rem-border) [&_.removed]:before:text-(--cb-rem-text)",
+						"[&_.highlighted]:relative [&_.highlighted]:bg-(--cb-hl-bg) [&_.highlighted]:before:border-l-2 [&_.highlighted]:before:border-(--cb-hl-border) [&_.highlighted]:before:text-(--cb-hl-text)",
+						"[&_.added]:relative [&_.added]:bg-(--cb-add-bg) [&_.added]:before:border-l-2 [&_.added]:before:border-(--cb-add-border) [&_.added]:before:text-(--cb-add-text)",
+						"[&_.removed]:relative [&_.removed]:bg-(--cb-rem-bg) [&_.removed]:before:border-l-2 [&_.removed]:before:border-(--cb-rem-border) [&_.removed]:before:text-(--cb-rem-text)",
 					)}
 					style={
 						{
-							"--cb-hl-bg": CODE_BLOCK_THEME.lineColors.highlight[colorScheme].bg,
-							"--cb-hl-border": CODE_BLOCK_THEME.lineColors.highlight[colorScheme].border,
-							"--cb-hl-text": CODE_BLOCK_THEME.lineColors.highlight[colorScheme].text,
+							"--cb-hl-bg":
+								CODE_BLOCK_THEME.lineColors.highlight[colorScheme].bg,
+							"--cb-hl-border":
+								CODE_BLOCK_THEME.lineColors.highlight[colorScheme].border,
+							"--cb-hl-text":
+								CODE_BLOCK_THEME.lineColors.highlight[colorScheme].text,
 							"--cb-add-bg": CODE_BLOCK_THEME.lineColors.added[colorScheme].bg,
-							"--cb-add-border": CODE_BLOCK_THEME.lineColors.added[colorScheme].border,
-							"--cb-add-text": CODE_BLOCK_THEME.lineColors.added[colorScheme].text,
-							"--cb-rem-bg": CODE_BLOCK_THEME.lineColors.removed[colorScheme].bg,
-							"--cb-rem-border": CODE_BLOCK_THEME.lineColors.removed[colorScheme].border,
-							"--cb-rem-text": CODE_BLOCK_THEME.lineColors.removed[colorScheme].text,
+							"--cb-add-border":
+								CODE_BLOCK_THEME.lineColors.added[colorScheme].border,
+							"--cb-add-text":
+								CODE_BLOCK_THEME.lineColors.added[colorScheme].text,
+							"--cb-rem-bg":
+								CODE_BLOCK_THEME.lineColors.removed[colorScheme].bg,
+							"--cb-rem-border":
+								CODE_BLOCK_THEME.lineColors.removed[colorScheme].border,
+							"--cb-rem-text":
+								CODE_BLOCK_THEME.lineColors.removed[colorScheme].text,
 						} as React.CSSProperties
 					}
 					dangerouslySetInnerHTML={{ __html: fallbackHtml }}
@@ -200,7 +218,12 @@ export function CodeBlock({
 
 			{/* Floating copy button when no filename header */}
 			{showCopyButton && !filename && (
-				<div className="absolute top-2 right-2">
+				<div
+					className={cn(
+						"absolute right-1.5",
+						lineCount === 1 ? "top-1/2 -translate-y-1/2" : "top-2",
+					)}
+				>
 					<CopyButton
 						copyContent={code}
 						variant="ghost"

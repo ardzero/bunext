@@ -35,6 +35,8 @@ end
 
 return M`;
 
+const BASH_SAMPLE = `bun create bunestro@latest`;
+
 const LANGUAGES = [
 	{ value: "javascript", label: "JavaScript" },
 	{ value: "typescript", label: "TypeScript" },
@@ -105,6 +107,10 @@ export function CbSamples() {
 
 			<Example title="Language switcher" className="w-full max-w-2xl">
 				<LanguageSwitcherSample />
+			</Example>
+
+			<Example title="Bash" className="w-full max-w-2xl">
+				<CodeBlock code={BASH_SAMPLE} language="bash" />
 			</Example>
 
 			<Example title="Hidden line numbers" className="w-full max-w-2xl">
