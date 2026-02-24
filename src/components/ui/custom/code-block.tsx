@@ -48,6 +48,32 @@ function escapeHtml(raw: string) {
 	return raw.replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+/** Fallback HTML with .line structure and line-marker classes so layout (padding, line numbers, bars) matches Shiki and avoids CLS. */
+function buildFallbackHtml(
+	code: string,
+	opts?: {
+		highlightLines?: number[];
+		addedLines?: number[];
+		removedLines?: number[];
+	},
+): string {
+	const lines = code.split(/\r?\n/);
+	const highlights = new Set(opts?.highlightLines);
+	const added = new Set(opts?.addedLines);
+	const removed = new Set(opts?.removedLines);
+	const lineSpans = lines
+		.map((line, i) => {
+			const lineNum = i + 1;
+			const classes = ["line"];
+			if (highlights.has(lineNum)) classes.push("highlighted");
+			if (added.has(lineNum)) classes.push("added");
+			if (removed.has(lineNum)) classes.push("removed");
+			return `<span class="${classes.join(" ")}">${escapeHtml(line)}</span>`;
+		})
+		.join("\n");
+	return `<pre><code>${lineSpans}</code></pre>`;
+}
+
 function lineClassTransformer(
 	highlightLines?: number[],
 	addedLines?: number[],
@@ -124,18 +150,28 @@ export function CodeBlock({
 			});
 			setHtml(out);
 		} catch {
-			setHtml(`<pre><code>${escapeHtml(code)}</code></pre>`);
+			setHtml(
+				buildFallbackHtml(code, {
+					highlightLines,
+					addedLines,
+					removedLines,
+				}),
+			);
 		} finally {
 			setLoaded(true);
 		}
-	}, [code, language, transformer, colorScheme]);
+	}, [code, language, transformer, colorScheme, highlightLines, addedLines, removedLines]);
 
 	useEffect(() => {
 		highlight();
 	}, [highlight]);
 
 	const fallbackHtml = !loaded
-		? `<pre><code>${escapeHtml(code)}</code></pre>`
+		? buildFallbackHtml(code, {
+				highlightLines,
+				addedLines,
+				removedLines,
+			})
 		: html;
 
 	return (
