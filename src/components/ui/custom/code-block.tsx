@@ -5,9 +5,10 @@ import { useTheme } from "next-themes";
 import { codeToHtml, type ShikiTransformer } from "shiki";
 import { cn } from "@/lib/utils";
 import { CopyButton } from "@/components/utils/copy";
-
-//
+// to pick themes visit:
+//https://textmate-grammars-themes.netlify.app/?theme=kanagawa-wave&grammar=javascript
 const CODE_BLOCK_THEME = {
+	defaultLanguage: "text",
 	shiki: {
 		light: "github-light",
 		dark: "github-dark-default",
@@ -42,57 +43,50 @@ type CodeBlockProps = {
 	useShikiBg?: boolean;
 };
 
-const DEFAULT_LANG = "text";
-
 function escapeHtml(raw: string) {
 	return raw.replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+type LineMarkerOpts = {
+	highlightLines?: number[];
+	addedLines?: number[];
+	removedLines?: number[];
+};
+
+function getLineMarkerClasses(
+	lineNum: number,
+	opts?: LineMarkerOpts,
+): string[] {
+	const classes: string[] = [];
+	if (opts?.highlightLines?.includes(lineNum)) classes.push("highlighted");
+	if (opts?.addedLines?.includes(lineNum)) classes.push("added");
+	if (opts?.removedLines?.includes(lineNum)) classes.push("removed");
+	return classes;
+}
+
 /** Fallback HTML with .line structure and line-marker classes so layout (padding, line numbers, bars) matches Shiki and avoids CLS. */
-function buildFallbackHtml(
-	code: string,
-	opts?: {
-		highlightLines?: number[];
-		addedLines?: number[];
-		removedLines?: number[];
-	},
-): string {
+function buildFallbackHtml(code: string, opts?: LineMarkerOpts): string {
 	const lines = code.split(/\r?\n/);
-	const highlights = new Set(opts?.highlightLines);
-	const added = new Set(opts?.addedLines);
-	const removed = new Set(opts?.removedLines);
 	const lineSpans = lines
 		.map((line, i) => {
 			const lineNum = i + 1;
-			const classes = ["line"];
-			if (highlights.has(lineNum)) classes.push("highlighted");
-			if (added.has(lineNum)) classes.push("added");
-			if (removed.has(lineNum)) classes.push("removed");
+			const classes = ["line", ...getLineMarkerClasses(lineNum, opts)];
 			return `<span class="${classes.join(" ")}">${escapeHtml(line)}</span>`;
 		})
 		.join("\n");
 	return `<pre><code>${lineSpans}</code></pre>`;
 }
 
-function lineClassTransformer(
-	highlightLines?: number[],
-	addedLines?: number[],
-	removedLines?: number[],
-): ShikiTransformer {
-	const highlights = new Set(highlightLines);
-	const added = new Set(addedLines);
-	const removed = new Set(removedLines);
-
+function lineClassTransformer(opts?: LineMarkerOpts): ShikiTransformer {
 	return {
 		name: "line-classes",
 		line(node, line) {
-			const classes: string[] = [];
-			if (highlights.has(line)) classes.push("highlighted");
-			if (added.has(line)) classes.push("added");
-			if (removed.has(line)) classes.push("removed");
-			if (classes.length) {
+			const markerClasses = getLineMarkerClasses(line, opts);
+			if (markerClasses.length) {
 				node.properties.class =
-					((node.properties.class as string) || "") + " " + classes.join(" ");
+					((node.properties.class as string) || "") +
+					" " +
+					markerClasses.join(" ");
 			}
 			return node;
 		},
@@ -101,7 +95,7 @@ function lineClassTransformer(
 
 export function CodeBlock({
 	code,
-	language = DEFAULT_LANG,
+	language = CODE_BLOCK_THEME.defaultLanguage,
 	filename,
 	highlightLines,
 	addedLines,
@@ -129,7 +123,7 @@ export function CodeBlock({
 	const transformer = useMemo(
 		() =>
 			hasLineMarkers
-				? lineClassTransformer(highlightLines, addedLines, removedLines)
+				? lineClassTransformer({ highlightLines, addedLines, removedLines })
 				: null,
 		// Stable deps: compare array values (keys) not references
 		// eslint-disable-next-line react-hooks/exhaustive-deps
@@ -160,19 +154,33 @@ export function CodeBlock({
 		} finally {
 			setLoaded(true);
 		}
-	}, [code, language, transformer, colorScheme, highlightLines, addedLines, removedLines]);
+	}, [
+		code,
+		language,
+		transformer,
+		colorScheme,
+		highlightLines,
+		addedLines,
+		removedLines,
+	]);
 
 	useEffect(() => {
 		highlight();
 	}, [highlight]);
 
-	const fallbackHtml = !loaded
-		? buildFallbackHtml(code, {
+	const initialFallbackHtml = useMemo(
+		() =>
+			buildFallbackHtml(code, {
 				highlightLines,
 				addedLines,
 				removedLines,
-			})
-		: html;
+			}),
+		// Stable deps: compare array values (keys) not references
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+		[code, highlightKey, addedKey, removedKey],
+	);
+
+	const fallbackHtml = !loaded ? initialFallbackHtml : html;
 
 	return (
 		<div
