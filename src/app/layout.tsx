@@ -13,7 +13,7 @@ import { fonts } from "@/styles/fonts";
 // providers
 import { RootProvider } from "@/components/providers/root-provider";
 // components
-import { ModeToggle } from "@/components/ModeToggle";
+import { ModeToggle } from "@/components/utils/ModeToggle";
 import { FeatureFlag } from "@/components/utils/featureFlag";
 import { ScrollToTopButton } from "@/components/utils/TopButton";
 

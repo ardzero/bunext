@@ -1,5 +1,5 @@
-import { ComponentExample } from "@/components/component-example";
-import { CbSamples } from "@/components/cb-samples";
+import { ComponentExample } from "@/components/examples/component-example";
+import { CbSamples } from "@/components/examples/cb-samples";
 
 export default function Page() {
 	return (
