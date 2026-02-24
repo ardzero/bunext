@@ -1,3 +1,4 @@
+import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
@@ -10,8 +11,10 @@ export function RootProvider({
 		<>
 			{/* <NuqsAdapter> */}
 			<ThemeProvider disableTransitionOnChange>
-				<TooltipProvider>{children}</TooltipProvider>
-				{/* <Toaster /> */}
+				<TooltipProvider>
+					{children}
+					<Toaster />
+				</TooltipProvider>
 			</ThemeProvider>
 			{/* </NuqsAdapter> */}
 		</>
