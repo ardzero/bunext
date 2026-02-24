@@ -110,7 +110,7 @@ export function CbSamples() {
 			</Example>
 
 			<Example title="Bash" className="w-full max-w-2xl">
-				<CodeBlock code={BASH_SAMPLE} language="bash" />
+				<CodeBlock code={BASH_SAMPLE} language="bash" showCopyButton={false} />
 			</Example>
 
 			<Example title="Hidden line numbers" className="w-full max-w-2xl">

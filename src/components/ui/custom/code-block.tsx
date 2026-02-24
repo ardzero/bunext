@@ -43,16 +43,16 @@ type CodeBlockProps = {
 	useShikiBg?: boolean;
 };
 
-function escapeHtml(raw: string) {
-	return raw.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
 type LineMarkerOpts = {
 	highlightLines?: number[];
 	addedLines?: number[];
 	removedLines?: number[];
 };
 
+// helper functions
+function escapeHtml(raw: string) {
+	return raw.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
 function getLineMarkerClasses(
 	lineNum: number,
 	opts?: LineMarkerOpts,
