@@ -16,6 +16,7 @@ import { RootProvider } from "@/components/providers/root-provider";
 import { ModeToggle } from "@/components/utils/ModeToggle";
 import { FeatureFlag } from "@/components/utils/featureFlag";
 import { ScrollToTopButton } from "@/components/utils/TopButton";
+import { ErrorSimulator } from "@/components/examples/error-sim";
 
 export default function RootLayout({
 	children,
@@ -26,8 +27,8 @@ export default function RootLayout({
 		<html lang="en" suppressHydrationWarning>
 			<body className={cn("font-sans", fonts)}>
 				<RootProvider>
+					<ErrorSimulator />
 					{children}
-
 					{/* checks if theme and theme button feature flags are enabled */}
 					<FeatureFlag featureFlag={["NEXT_THEME", "THEME_BUTTON"]}>
 						<ModeToggle
