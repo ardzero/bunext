@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Example, ExampleWrapper } from "@/components/example";
-import { CodeBlock } from "@/components/ui/code-block";
+import { CodeBlock } from "@/components/ui/custom/code-block";
 import {
 	Select,
 	SelectContent,
@@ -44,7 +44,10 @@ const LANGUAGES = [
 
 const LANGUAGE_SAMPLE: Record<(typeof LANGUAGES)[number]["value"], string> = {
 	javascript: DEFAULT_REACT_CODE,
-	typescript: DEFAULT_REACT_CODE.replace("function MyComponent(props)", "function MyComponent(props: { name: string })"),
+	typescript: DEFAULT_REACT_CODE.replace(
+		"function MyComponent(props)",
+		"function MyComponent(props: { name: string })",
+	),
 	tsx: DEFAULT_REACT_CODE,
 	lua: LUA_SAMPLE,
 };
@@ -61,10 +64,7 @@ export function CbSamples() {
 			</Example>
 
 			<Example title="No filename" className="w-full max-w-2xl">
-				<CodeBlock
-					code={DEFAULT_REACT_CODE}
-					language="tsx"
-				/>
+				<CodeBlock code={DEFAULT_REACT_CODE} language="tsx" />
 			</Example>
 
 			<Example title="Highlighted lines" className="w-full max-w-2xl">
@@ -87,7 +87,7 @@ export function CbSamples() {
 			</Example>
 
 			<Example title="Referenced lines" className="w-full max-w-2xl">
-				<p className="text-muted-foreground mb-2 text-xs">
+				<p className="mb-2 text-xs text-muted-foreground">
 					You can link to lines. Just press on any line number.
 				</p>
 				<CodeBlock
@@ -120,14 +120,22 @@ export function CbSamples() {
 }
 
 function LanguageSwitcherSample() {
-	const [lang, setLang] = useState<(typeof LANGUAGES)[number]["value"]>("javascript");
+	const [lang, setLang] =
+		useState<(typeof LANGUAGES)[number]["value"]>("javascript");
 	const code = LANGUAGE_SAMPLE[lang];
 
 	return (
 		<div className="flex w-full flex-col gap-3">
 			<div className="flex items-center gap-2">
-				<span className="text-muted-foreground text-xs font-medium">Language:</span>
-				<Select value={lang} onValueChange={(v) => setLang(v as (typeof LANGUAGES)[number]["value"])}>
+				<span className="text-xs font-medium text-muted-foreground">
+					Language:
+				</span>
+				<Select
+					value={lang}
+					onValueChange={(v) =>
+						setLang(v as (typeof LANGUAGES)[number]["value"])
+					}
+				>
 					<SelectTrigger className="w-[140px]" aria-label="Select language">
 						<SelectValue />
 					</SelectTrigger>
