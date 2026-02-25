@@ -54,7 +54,7 @@ export type TSiteData = {
     metadata_color: MetadataColor
     author: Author
     keywords: string[]
-    robotsDefault: 'index, follow' | 'noindex, nofollow' | { index: boolean; follow: boolean }
+    robotsDefault: { index: boolean; follow: boolean }
 }
 export type TtwitterMetaData = {
     card: 'summary_large_image' | 'summary' | 'app' | 'player'
