@@ -12,8 +12,8 @@ export const siteData: TSiteData = {
         'BUNEXT is a opinionated Next.js 16 Starter Template setup with tailwindV4, shadcn, bun, next-themes, nuqs, react motion, feature flags, metadata generator, custom image components with lazy loading and auto generated placeholder, qr code generator, unique code generator etc.',
     ogImage: { src: "/ogImage.jpg", alt: "BUNEXT", width: 1200, height: 630 },
     metadata_color: {
-        light: "#3A86FF",
-        dark: "#3A86FF",
+        light: "#FFEECD",
+        dark: "#FFEECD",
     },
     author: {
         name: "Ard Astroid",
