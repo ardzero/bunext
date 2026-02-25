@@ -20,35 +20,90 @@ export async function GenerateImage(params: {
 	//   ).then((res) => res.arrayBuffer())
 
 	return new ImageResponse(
-		// ImageResponse JSX element
 		<div
 			style={{
-				fontSize: 160,
-				background: "black",
 				width: "100%",
 				height: "100%",
 				display: "flex",
-				textAlign: "center",
 				alignItems: "center",
 				justifyContent: "center",
-				color: "white",
+				background: "linear-gradient(145deg, #0f0f12 0%, #1a1a24 40%, #16161d 100%)",
 				fontFamily: "sans-serif",
+				position: "relative",
 			}}
 		>
+			{/* Corner accents */}
+			<div
+				style={{
+					position: "absolute",
+					top: 0,
+					left: 0,
+					right: 0,
+					height: 4,
+					background: "linear-gradient(90deg, transparent 0%, #6366f1 20%, #8b5cf6 50%, #6366f1 80%, transparent 100%)",
+					opacity: 0.9,
+				}}
+			/>
+			<div
+				style={{
+					position: "absolute",
+					bottom: 0,
+					left: 0,
+					right: 0,
+					height: 4,
+					background: "linear-gradient(90deg, transparent 0%, #6366f1 20%, #8b5cf6 50%, #6366f1 80%, transparent 100%)",
+					opacity: 0.9,
+				}}
+			/>
+			{/* Content card */}
 			<div
 				style={{
 					display: "flex",
 					flexDirection: "column",
-					textAlign: "center",
 					alignItems: "center",
 					justifyContent: "center",
-					gap: 4,
+					textAlign: "center",
+					padding: 80,
+					maxWidth: 900,
+					gap: 24,
+					border: "1px solid rgba(99, 102, 241, 0.2)",
+					borderRadius: 24,
+					backgroundColor: "rgba(15, 15, 18, 0.6)",
 				}}
 			>
-				<span style={{ fontWeight: 600 }}>{params.title}</span>
-				<span style={{ fontSize: 40, fontWeight: 300 }}>
-					{params.description}
+				<span
+					style={{
+						fontSize: 72,
+						fontWeight: 700,
+						color: "white",
+						letterSpacing: "-0.02em",
+						lineHeight: 1.1,
+					}}
+				>
+					{params.title}
 				</span>
+				{params.description ? (
+					<>
+						<div
+							style={{
+								width: 64,
+								height: 4,
+								backgroundColor: "#6366f1",
+								borderRadius: 2,
+							}}
+						/>
+						<span
+							style={{
+								fontSize: 28,
+								fontWeight: 400,
+								color: "rgba(255, 255, 255, 0.7)",
+								lineHeight: 1.4,
+							}}
+						>
+							{params.description}
+						</span>
+					</>
+				) : null}
 			</div>
 		</div>,
 		// ImageResponse options
