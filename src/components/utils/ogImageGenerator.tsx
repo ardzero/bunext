@@ -83,7 +83,14 @@ export async function GenerateImage(params: {
 					{params.title}
 				</span>
 				{params.description ? (
-					<>
+					<div
+						style={{
+							display: "flex",
+							flexDirection: "column",
+							alignItems: "center",
+							gap: 24,
+						}}
+					>
 						<div
 							style={{
 								width: 64,
@@ -102,7 +109,7 @@ export async function GenerateImage(params: {
 						>
 							{params.description}
 						</span>
-					</>
+					</div>
 				) : null}
 			</div>
 		</div>,
