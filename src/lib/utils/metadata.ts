@@ -95,7 +95,7 @@ type TgetCustomMetaData = {
 }
 
 // helpful for defining custom metadata for pages without clutter
-export function getCustomMetaData({
+export const getCustomMetaData = ({
     title,
     description,
     publisher,
@@ -110,20 +110,27 @@ export function getCustomMetaData({
     longogTitleSuffix,
     ogImage,
     robots = 'index, follow',
-}: TgetCustomMetaData) {
+}: TgetCustomMetaData): Metadata => {
     const suffix = shortSuffix ? siteData.shortName : siteData.name
     const customTitle = titleSuffix ? `${title} / ${suffix}` : title
 
     const ogSuffix = longogTitleSuffix ? siteData.name : siteData.shortName
     const ogTitle = ogTitleSuffix ? `${title} / ${ogSuffix}` : title
 
+    const pageDescription = description || siteData.description
+    const canonicalUrl = url || remoteUrl
+    const ogImageUrl =
+        typeof ogImage === 'string'
+            ? ogImage
+            : ogImage?.src || siteData.ogImage.src
+
     const md: Metadata = {
         title: customTitle,
-        description: description || siteData.description,
+        description: pageDescription,
 
         robots: robots || siteData.robotsDefault, //  { index: false, follow: false }
         publisher: publisher || siteData.publisher,
-        metadataBase: new URL(url || remoteUrl),
+        metadataBase: new URL(canonicalUrl),
         keywords: keywords || siteData.keywords,
         authors: authors || [
             {
@@ -136,32 +143,29 @@ export function getCustomMetaData({
         openGraph: {
             type: 'website',
             locale: 'en_US',
-            url: url || remoteUrl,
+            url: canonicalUrl,
             siteName: siteData.baseUrl,
             title: ogTitle,
-            description: description || siteData.description,
-            images: {
-                url:
-                    typeof ogImage === 'string'
-                        ? ogImage
-                        : ogImage?.src || siteData.ogImage.src,
-                width: siteData.ogImage.width,
-                height: siteData.ogImage.height,
-            },
+            description: pageDescription,
+            images: [
+                {
+                    url: ogImageUrl,
+                    width: siteData.ogImage.width,
+                    height: siteData.ogImage.height,
+                    alt: siteData.ogImage.alt,
+                },
+            ],
         },
         twitter: {
             card: twData.card,
-            title: twData.title,
-            description: twData.description,
+            title: ogTitle,
+            description: pageDescription,
             site: `@${publisher || siteData.publisher}`,
-            images:
-                typeof ogImage === 'string'
-                    ? ogImage
-                    : ogImage?.src || siteData.ogImage.src,
+            images: [ogImageUrl],
             creator: twCreator || twData.creator,
         },
         alternates: {
-            canonical: remoteUrl,
+            canonical: canonicalUrl,
         },
         icons: icons,
         manifest: `${remoteUrl}/site.webmanifest`,
