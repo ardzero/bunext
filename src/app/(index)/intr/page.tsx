@@ -1,4 +1,13 @@
+import { Metadata } from "next";
 import { TestCard } from "./TestCard";
+
+export const metadata: Metadata = {
+	title: "Intr",
+	description: "Intr",
+	openGraph: {
+		images: ["/intr/opengraph-image"],
+	},
+};
 
 export default function Page() {
 	// Simulate a production error
