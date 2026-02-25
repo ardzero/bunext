@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import type { StaticImageData } from 'next/image'
+import type { Graph, ImageObject, Organization, WebSite } from 'schema-dts'
 
 import { icons, siteData, twitterMetaData as twData } from '@/lib/data/siteData'
 import { getBaseUrl } from '@/lib/utils'
@@ -166,4 +167,39 @@ export function getCustomMetaData({
         manifest: `${remoteUrl}/site.webmanifest`,
     }
     return md
+}
+
+
+
+
+
+const websiteId = `${remoteUrl}/#website`
+const organizationId = `${remoteUrl}/#organization`
+// https://nextjs.org/docs/app/guides/json-ld
+/** Site-wide JSON-LD for WebSite + Organization (used in root layout head). */
+export function getSiteJsonLd(): Graph {
+    const webSite: WebSite = {
+        '@type': 'WebSite',
+        '@id': websiteId,
+        url: remoteUrl,
+        name: siteData.name,
+        description: siteData.description,
+        publisher: { '@id': organizationId },
+        inLanguage: 'en-US',
+    }
+    const logo: ImageObject = {
+        '@type': 'ImageObject',
+        url: new URL(siteData.ogImage.src, remoteUrl).toString(),
+    }
+    const organization: Organization = {
+        '@type': 'Organization',
+        '@id': organizationId,
+        name: siteData.name,
+        url: remoteUrl,
+        logo,
+    }
+    return {
+        '@context': 'https://schema.org',
+        '@graph': [webSite, organization],
+    }
 }

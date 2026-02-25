@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { siteMetaData, viewportData } from "@/lib/utils/metadata";
+import { siteMetaData, viewportData, getSiteJsonLd } from "@/lib/utils/metadata";
 // metadata
 export const metadata: Metadata = siteMetaData;
 export const viewport: Viewport = viewportData;
@@ -15,6 +15,7 @@ import { ModeToggle } from "@/components/utils/ModeToggle";
 import { FeatureFlag } from "@/components/utils/featureFlag";
 import { ScrollToTopButton } from "@/components/utils/TopButton";
 import { ErrorSimulator } from "@/components/examples/error-sim";
+import { JsonLd } from "@/components/utils/JsonLd";
 
 export default function RootLayout({
 	children,
@@ -23,6 +24,9 @@ export default function RootLayout({
 }>) {
 	return (
 		<html lang="en" suppressHydrationWarning>
+			<head>
+				<JsonLd data={getSiteJsonLd()} />
+			</head>
 			<body className={cn("font-sans", fonts)}>
 				<RootProvider>
 					<ErrorSimulator />
