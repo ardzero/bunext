@@ -4,13 +4,12 @@ import * as p from "@clack/prompts";
 import color from "picocolors";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
-import { existsSync, readFileSync, rmSync } from "fs";
-import { resolve, dirname, join } from "path";
+import { existsSync, readFileSync, rmSync, writeFileSync } from "fs";
+import { resolve, dirname, join, basename } from "path";
 import { fileURLToPath } from "url";
 
 const REPO_URL = "https://github.com/ardzero/bunext.git";
-
-/** Paths (files or folders) to remove from the created project. Relative to project root. */
+// Paths (files or folders) to remove from the created project. Relative to project root.
 const PATHS_TO_REMOVE: string[] = [
     "create-bunext",
     "packages",
@@ -18,6 +17,8 @@ const PATHS_TO_REMOVE: string[] = [
     "src/app/(index)/docs",
     "src/components/docs",
 ];
+// Whether to rename the package.json name to the project name.
+const RENAME_PACKAGE_NAME = true;
 
 // Get package version
 function getVersion(): string {
@@ -45,6 +46,16 @@ interface CliArguments {
 
 type PackageManager = "bun" | "pnpm" | "yarn" | "npm";
 type EditorChoice = "cursor" | "vscode" | "skip" | null;
+
+function slugifyPackageName(name: string): string {
+    const slug = name
+        .toLowerCase()
+        .replace(/[\s_]+/g, "-")
+        .replace(/[^a-z0-9-]/g, "")
+        .replace(/-+/g, "-")
+        .replace(/^-|-$/g, "");
+    return slug || "my-app";
+}
 
 function validateProjectName(name: string): string | undefined {
     if (!name) return "Project name is required";
@@ -303,6 +314,22 @@ async function main(): Promise<void> {
         p.log.warn("Could not remove some directories");
         p.log.info("You can manually delete them later.");
         // Don't exit - this is not critical
+    }
+
+    if (RENAME_PACKAGE_NAME) {
+        // Set package.json name to project name
+        const projectRoot = useCurrentDir ? process.cwd() : resolve(process.cwd(), projectName);
+        const nameForPackage = useCurrentDir ? basename(projectRoot) : projectName;
+        const packageJsonPath = resolve(projectRoot, "package.json");
+        if (existsSync(packageJsonPath)) {
+            try {
+                const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf-8"));
+                packageJson.name = slugifyPackageName(nameForPackage);
+                writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2) + "\n");
+            } catch {
+                // ignore
+            }
+        }
     }
 
     // Detect package manager
