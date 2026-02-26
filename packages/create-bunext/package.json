@@ -1,0 +1,55 @@
+{
+	"name": "create-bunext",
+	"description": "CLI tool to create Next.js 16 project using Bunext template",
+	"author": "Ard Astroid <ardastroid@gmail.com>",
+	"version": "0.0.1",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/ardzero/bunext.git",
+		"directory": "packages/create-bunext"
+	},
+	"homepage": "https://bunext.ardastroid.com",
+	"bugs": {
+		"url": "https://github.com/ardzero/bunext/issues"
+	},
+	"bin": {
+		"create-bunestro": "dist/cli.js"
+	},
+	"type": "module",
+	"files": [
+		"dist",
+		"README.md"
+	],
+	"main": "./dist/cli.js",
+	"scripts": {
+		"build": "bun build cli.ts --outdir dist --target node --minify --sourcemap=external",
+		"prepublishOnly": "bun run build"
+	},
+	"engines": {
+		"node": ">=20.0.0"
+	},
+	"keywords": [
+		"next.js",
+		"nextjs16",
+		"react",
+		"typescript",
+		"tailwindcss",
+		"shadcn-ui",
+		"bun",
+		"template",
+		"starter",
+		"cli",
+		"create-app",
+		"boilerplate"
+	],
+	"devDependencies": {
+		"@clack/prompts": "^0.11.0",
+		"@types/bun": "^1.1.15",
+		"@types/node": "^20.0.0",
+		"@types/yargs": "^17.0.32",
+		"yargs": "^17.7.2",
+		"execa": "^9.0.0",
+		"picocolors": "^1.1.1"
+	}
+}
