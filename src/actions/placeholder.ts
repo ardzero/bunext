@@ -28,3 +28,18 @@ export async function getPlaceholderImage(src: string) {
         return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mOsa2yqBwAFCAICLICSyQAAAABJRU5ErkJggg==';
     }
 }
+
+export async function getImageDimensions(
+    src: string
+): Promise<{ width: number; height: number } | null> {
+    try {
+        const buffer = await (src.startsWith('http')
+            ? getFileBuffer(src)
+            : getFileBufferLocal(src));
+        const { width, height } = await sharp(buffer).metadata();
+        if (width == null || height == null) return null;
+        return { width, height };
+    } catch {
+        return null;
+    }
+}

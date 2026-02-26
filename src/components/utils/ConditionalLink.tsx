@@ -1,8 +1,9 @@
-// components/UnstyledLink.tsx
+// CLink: Link for internal routes, <a target="_blank"> for external.
 import { cn } from '@/lib/utils'
-import Link, { LinkProps } from 'next/link'
+import Link, { type LinkProps } from 'next/link'
+import { forwardRef } from 'react'
 
-export type UnstyledLinkProps = {
+type TCLinkProps = {
   href: string
   children: React.ReactNode
   openNewTab?: boolean
@@ -10,37 +11,32 @@ export type UnstyledLinkProps = {
 } & React.ComponentPropsWithoutRef<'a'> &
   LinkProps
 
-export default function CLink({
-  children,
-  href,
-  openNewTab,
-  className,
-  ...rest
-}: UnstyledLinkProps) {
-  const isNewTab =
-    openNewTab !== undefined
-      ? openNewTab
-      : href && !href.startsWith('/') && !href.startsWith('#')
+export const CLink = forwardRef<HTMLAnchorElement, TCLinkProps>(
+  ({ children, href, openNewTab, className, ...rest }, ref) => {
+    const isNewTab =
+      openNewTab !== undefined
+        ? openNewTab
+        : href && !href.startsWith('/') && !href.startsWith('#')
 
-  if (!isNewTab) {
-    return (
-      <Link href={href}>
-        <a {...rest} className={className}>
+    if (!isNewTab)
+      return (
+        <Link ref={ref} href={href} className={className} {...rest}>
           {children}
-        </a>
-      </Link>
+        </Link>
+      )
+
+    return (
+      <a
+        ref={ref}
+        target="_blank"
+        rel="noopener noreferrer"
+        href={href}
+        {...rest}
+        className={cn(className, 'cursor-newtab')}
+      >
+        {children}
+      </a>
     )
   }
-
-  return (
-    <a
-      target="_blank"
-      rel="noopener noreferrer"
-      href={href}
-      {...rest}
-      className={cn(className, 'cursor-newtab')}
-    >
-      {children}
-    </a>
-  )
-}
+)
+CLink.displayName = 'CLink'
