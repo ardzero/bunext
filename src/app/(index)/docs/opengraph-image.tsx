@@ -14,6 +14,6 @@ export const size = {
 export default async function Image() {
 	return await GenerateImage({
 		title: "Bunext",
-		description: "Next.js 16 Bun Starter",
+		description: "Docs/Component Examples for Bunext",
 	});
 }
