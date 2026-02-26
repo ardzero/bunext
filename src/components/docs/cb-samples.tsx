@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Example, ExampleWrapper } from "@/components/examples/example";
+import { Example, ExampleWrapper } from "@/components/docs/example";
 import { CodeBlock } from "@/components/ui/custom/code-block";
 import {
 	Select,
