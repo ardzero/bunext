@@ -97,6 +97,8 @@ type CustomMetadataProps = {
     ogTitleSuffix?: boolean
     longogTitleSuffix?: boolean
     ogImage?: OgImageInput
+    /** When true, omit openGraph.images and twitter.images so the route's opengraph-image.tsx (file convention) is used. Use when the page has opengraph-image.tsx in the same segment. */
+    useFileOgImage?: boolean
     robots?: 'index, follow' | 'noindex, nofollow' | { index: boolean; follow: boolean }
     metadataColor?: MetadataColor
     metadataIcons?: TMetadataIcons
@@ -143,6 +145,7 @@ const resolveOgImage = (
  * @param options.url - Canonical URL for the page (string or URL); used for metadataBase, openGraph.url, alternates.canonical
  * @param options.ogTitle - Override for Open Graph and Twitter title; if omitted, derived from title + suffix
  * @param options.ogImage - OG image: URL string, StaticImageData, or `{ src, alt?, width?, height? }`
+ * @param options.useFileOgImage - When true, omit OG/twitter images so the segment's opengraph-image.tsx file convention is used (Next.js will inject its hashed URL)
  * @param options.robots - Robots directive; defaults to `'index, follow'`
  * @param options.metadataIcons - Per-page icons; falls back to site icons
  * @param options.titleSuffix - Whether to append site name/shortName to title (default true)
@@ -172,6 +175,7 @@ export const getCustomMetaData = ({
     ogTitleSuffix = true,
     longogTitleSuffix,
     ogImage,
+    useFileOgImage = false,
     robots = 'index, follow',
     metadataIcons: metadataIconsOverride,
 }: CustomMetadataProps): Metadata => {
@@ -210,21 +214,25 @@ export const getCustomMetaData = ({
             siteName: siteData.baseUrl,
             title: ogTitle,
             description: pageDescription,
-            images: [
-                {
-                    url: resolvedOgImage.url,
-                    width: resolvedOgImage.width,
-                    height: resolvedOgImage.height,
-                    alt: resolvedOgImage.alt,
-                },
-            ],
+            ...(useFileOgImage
+                ? {}
+                : {
+                      images: [
+                          {
+                              url: resolvedOgImage.url,
+                              width: resolvedOgImage.width,
+                              height: resolvedOgImage.height,
+                              alt: resolvedOgImage.alt,
+                          },
+                      ],
+                  }),
         },
         twitter: {
             card: twData.card,
             title: ogTitle,
             description: pageDescription,
             site: `@${publisher || siteData.publisher}`,
-            images: [resolvedOgImage.url],
+            ...(useFileOgImage ? {} : { images: [resolvedOgImage.url] }),
             creator: twCreator || twData.creator,
         },
         alternates: {

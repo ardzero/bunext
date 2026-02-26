@@ -6,7 +6,7 @@ import { getCustomMetaData } from "@/lib/utils/metadata";
 export const metadata: Metadata = getCustomMetaData({
 	title: "Intr",
 	description: "Test page for scroll intersection",
-	ogImage: "/intr/opengraph-image",
+	useFileOgImage: true,
 });
 
 export default function Page() {
