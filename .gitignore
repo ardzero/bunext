@@ -3,6 +3,9 @@
 # dependencies
 /node_modules
 /packages/create-bunext/node_modules/
+/packages/create-bunext/dist/
+/packages/bunext-wrapper/node_modules/
+/packages/bunext-wrapper/dist/
 /.pnp
 .pnp.*
 .yarn/*
