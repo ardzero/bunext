@@ -1,5 +1,5 @@
 "use client";
-import { Example, ExampleWrapper } from "@/components/examples/example";
+import { Example, ExampleWrapper } from "@/components/docs/example";
 import {
 	AlertDialog,
 	AlertDialogAction,
