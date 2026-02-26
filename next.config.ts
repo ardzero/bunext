@@ -11,6 +11,12 @@ const nextConfig: NextConfig = {
   },
   compiler:
     process.env.NODE_ENV === "production" ? { removeConsole: true } : {},
+  // Log full absolute URLs for fetch requests (dev/build) — useful for debugging API calls
+  logging: {
+    fetches: {
+      fullUrl: true,
+    },
+  },
 };
 
 export default nextConfig;
