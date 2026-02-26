@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import { TestCard } from "./TestCard";
 import { getCustomMetaData } from "@/lib/utils/metadata";
 
-// always use this function when exporting metadata else open graph texts get overriden
+// always use this function when exporting metadata else open graph data gets overriden
 export const metadata: Metadata = getCustomMetaData({
 	title: "Intr",
 	description: "Test page for scroll intersection",

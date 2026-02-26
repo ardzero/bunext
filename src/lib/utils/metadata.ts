@@ -7,7 +7,7 @@ import { getBaseUrl } from '@/lib/utils'
 import type { Author, MetadataColor, TMetadataIcons } from '@/types'
 
 // gets the full remote url
-export const remoteUrl = getBaseUrl()
+export const baseURL = getBaseUrl()
 
 
 export const viewportData: Viewport = {
@@ -33,7 +33,7 @@ export const siteMetaData: Metadata = {
     description: siteData.description,
     robots: siteData.robotsDefault, //  { index: false, follow: false }
     publisher: siteData.publisher,
-    metadataBase: new URL(remoteUrl),
+    metadataBase: new URL(baseURL),
     keywords: siteData.keywords,
     authors: [
         {
@@ -46,7 +46,7 @@ export const siteMetaData: Metadata = {
     openGraph: {
         type: 'website',
         locale: 'en_US',
-        url: remoteUrl,
+        url: baseURL,
         siteName: siteData.baseUrl,
         title: siteData.name,
         description: siteData.description,
@@ -69,11 +69,11 @@ export const siteMetaData: Metadata = {
         creator: twData.creator,
     },
     alternates: {
-        canonical: remoteUrl,
+        canonical: baseURL,
     },
 
     icons: icons,
-    manifest: `${remoteUrl}/site.webmanifest`,
+    manifest: `${baseURL}/site.webmanifest`,
 }
 
 
@@ -187,7 +187,7 @@ export const getCustomMetaData = ({
     const ogTitle = ogTitleOverride ?? derivedOgTitle
 
     const pageDescription = description || siteData.description
-    const canonicalUrl = resolveUrl(url) || remoteUrl
+    const canonicalUrl = resolveUrl(url) || baseURL
     const resolvedOgImage = resolveOgImage(ogImage)
     const pageIcons = metadataIconsOverride ?? icons
 
@@ -217,15 +217,15 @@ export const getCustomMetaData = ({
             ...(useFileOgImage
                 ? {}
                 : {
-                      images: [
-                          {
-                              url: resolvedOgImage.url,
-                              width: resolvedOgImage.width,
-                              height: resolvedOgImage.height,
-                              alt: resolvedOgImage.alt,
-                          },
-                      ],
-                  }),
+                    images: [
+                        {
+                            url: resolvedOgImage.url,
+                            width: resolvedOgImage.width,
+                            height: resolvedOgImage.height,
+                            alt: resolvedOgImage.alt,
+                        },
+                    ],
+                }),
         },
         twitter: {
             card: twData.card,
@@ -239,7 +239,7 @@ export const getCustomMetaData = ({
             canonical: canonicalUrl,
         },
         icons: pageIcons,
-        manifest: `${remoteUrl}/site.webmanifest`,
+        manifest: `${baseURL}/site.webmanifest`,
     }
     return md
 }
@@ -265,8 +265,8 @@ export const getCustomViewport = (metadataColor?: MetadataColor): Viewport =>
 
 
 
-const websiteId = `${remoteUrl}/#website`
-const organizationId = `${remoteUrl}/#organization`
+const websiteId = `${baseURL}/#website`
+const organizationId = `${baseURL}/#organization`
 
 /**
  * Builds site-wide JSON-LD graph (WebSite + Organization) for the root layout.
@@ -279,7 +279,7 @@ export function getSiteJsonLd(): Graph {
     const webSite: WebSite = {
         '@type': 'WebSite',
         '@id': websiteId,
-        url: remoteUrl,
+        url: baseURL,
         name: siteData.name,
         description: siteData.description,
         publisher: { '@id': organizationId },
@@ -287,13 +287,13 @@ export function getSiteJsonLd(): Graph {
     }
     const logo: ImageObject = {
         '@type': 'ImageObject',
-        url: new URL(siteData.ogImage.src, remoteUrl).toString(),
+        url: new URL(siteData.ogImage.src, baseURL).toString(),
     }
     const organization: Organization = {
         '@type': 'Organization',
         '@id': organizationId,
         name: siteData.name,
-        url: remoteUrl,
+        url: baseURL,
         logo,
     }
     return {
