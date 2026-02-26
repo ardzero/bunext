@@ -1,10 +1,12 @@
 import { Metadata } from "next";
 import { TestCard } from "./TestCard";
+import { getCustomMetaData } from "@/lib/utils/metadata";
 
-export const metadata: Metadata = {
+// always use this function when exporting metadata else open graph texts get overriden
+export const metadata: Metadata = getCustomMetaData({
 	title: "Intr",
-	description: "Intr",
-};
+	description: "Test page for scroll intersection",
+});
 
 export default function Page() {
 	// Simulate a production error
