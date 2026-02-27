@@ -1,128 +1,136 @@
+[![Bunext](https://bunext.ardastroid.com/ogImage.jpg)](https://bunext.ardastroid.com/)
+
 # Bunext
 
-A Next.js 16 app with Tailwind CSS template. [Live deployment](https://bunext.ardastroid.com/)
+An opinionated Next.js 16 app template with Tailwind CSS, Shadcn, and Tailwind-motion, along with built-in utilities. [Live deployment](https://bunext.ardastroid.com/)
+Repo: [Github Repo](https://github.com/ardzero/bunext)
+
+## Getting Started
+
+Create a new project using:
+
+```bash
+bun create bunext@latest
+```
+
+Or with npm:
+
+```bash
+npm create bunext@latest
+```
+
+### Quick Setup Options
+
+```bash
+# Interactive mode (recommended for first time)
+bun create bunext my-app
+
+# Skip all prompts, use defaults
+bun create bunext my-app -y
+
+# Open in editor after creation
+bun create bunext my-app --cursor
+bun create bunext my-app --vscode
+
+# Skip dependency installation
+bun create bunext my-app --no-install
+
+# Combine options
+bun create bunext my-app -y --cursor
+```
+
+Run with `--help` flag to see all available options:
+
+```bash
+bun create bunext --help
+```
 
 ## Usage (run locally)
 
-> required `bun` or `nodejs` installed and make sure they're up to date
+> Requires `bun` or `nodejs` installed and up to date
 
 Go to the `root` folder where `package.json` exists.
 
-```bash
-bun install
-```
+> Skip this if you used `bun create bunext` with dependency installation (default)
 
 ```bash
+# Using bun
+bun install
+
+# Using npm
 npm install
 ```
 
 ### Then
 
 ```bash
-bun --bun run dev
-```
-
-```bash
+# Using bun
 bun run dev
-```
 
-```bash
+# Using npm
 npm run dev
 ```
+
+#### Command list
+
+| Command           | Action                                        |
+| :---------------- | :-------------------------------------------- |
+| `bun run dev`     | Starts local dev server at `localhost:3000`   |
+| `bun run build`   | Build your production app to `./.next/`       |
+| `bun run start`   | Start the production server (run after build) |
+| `bun run preview` | Build and start production server locally     |
+| `bun run lint`    | Run ESLint                                    |
+| `bun run format`  | Run Prettier to format code                   |
+
+> Just replace `bun` with `npm` if you're using npm
 
 ## Features
 
 - Next.js 16 App Directory
 - Tailwind v4 CSS
 - [Shadcn](https://ui.shadcn.com/) components
-- Custom util components like `share modal, multi-select(no library), Img, Icons, etc`
-- CustomFont Optimization using [Next font](https://nextjs.org/docs/pages/building-your-application/optimizing/fonts)
+- Custom util components like `metadata, JsonLD, Img, Icons, ogImageGen, featureFlag, clink (conditional link), code-block etc`
+- Custom font optimization using [Next font](https://nextjs.org/docs/pages/building-your-application/optimizing/fonts)
 - Icons using [lucide-react](https://lucide.dev/)
 - Next theme provider (dark and light mode)
-- Url stage management using [nuqs](https://nuqs.47ng.com/)
-- Tailwind css only animations using [tailwindcss-motion](https://docs.rombo.co/tailwind)
+- URL state management using [nuqs](https://nuqs.47ng.com/)
+- Tailwind CSS only animations using [tailwindcss-motion](https://docs.rombo.co/tailwind)
+- Configured with [react motion](https://motion.dev/docs/react) for advance animations.
 - Feature flags
 - Metadata generator for SEO (including apple-touch-icon)
-- [zod](https://zod.dev/) validation
-- Per Link page transition (without any library)
-- Custom Image components with lazy loading and auto generated placeholder (worsk with or without `next/image`)
-- [Prettier](https://prettier.io/) for linting and formatting
-<!-- - [Fluid Tailwind](https://fluid.tw/) for easier responsive design (disabled by default, to enable go to `tailwind.config.ts` and uncomment the fluid plugin variables, Note: the `min-*` and `max-*` variants don't work while using fluid-tailwind) -->
+- Custom Image components with lazy loading and auto generated placeholder (works with or without `next/image`)
+- [Prettier](https://prettier.io/) configured with tailwind plugin for formatting classes
 - Utilities like `qrCode gen, string shortner, uniqueCode gen, img placeholder, email validation, hashing etc`
 
 ## Config
 
-- for generating colors use [realtime-colors](https://www.realtimecolors.com/) shadcn template and pase it on `src/styles/globals.css`
-- add fonts on `src/styles/tailwind/fonts.ts`
-- to configure feature flags got to `src/lib/config/featureflags.ts`
-- to configure Metadata got to `src/lib/data/siteData.ts`
-- advance Metadata config in `src/lib/config/siteConfig.ts`
-- for base styles (scrollbar style, selection highlighting etc) go to `src/styles/tailwind/base.ts`
+- For generating colors use [realtime-colors](https://www.realtimecolors.com/) or [shadcnstudio](https://shadcnstudio.com/) and paste it in `src/styles/globals.css`
+- Add fonts in `src/styles/tailwind/fonts.ts`
+- To configure feature flags go to `src/lib/utils/featureflags.ts`
+- To configure Metadata go to `src/lib/data/siteData.ts`
+- Advance Metadata config in `src/lib/config/siteConfig.ts`
+- For base styles (scrollbar style, selection highlighting etc) go to `src/styles/globals.css`
 
 ## Roadmap
 
-- [x] add next themes
-- [x] feature flags
-- [x] add sample responsive nav
-- [ ] add sample footer
-- [ ] add sample server actions
-- [ ] add syntax highlighting for code blocks
-- [ ] add a branch with animation features using motion
-- [ ] add a feature full branch with drizzle orm, analytics, auth
+- [x] Add next themes
+- [x] Feature flags
+- [x] Add sample server actions
+- [x] Add syntax highlighting for code blocks
+- [x] Add react motion
+- [ ] Add a feature full branch with drizzle orm, analytics, auth
 
-### Multi-select sample code
+## Socials
 
-```tsx
-'use client'
-import React, { useState } from 'react'
-import { MultiSelect } from '@/components/ui/multi-select'
-
-const catsList = [
-  { value: 'persian', label: 'Persian Cat' },
-  { value: 'siamese', label: 'Siamese Cat' },
-  { value: 'maine-coon', label: 'Maine Coon' },
-  { value: 'ragdoll', label: 'Ragdoll' },
-  { value: 'bengal', label: 'Bengal Cat' },
-]
-
-function Home() {
-  const [selectedCats, setSelectedCats] = useState<string[]>([
-    'persian',
-    'siamese',
-  ])
-
-  return (
-    <div className="max-w-xl p-4">
-      <h1 className="mb-4 text-2xl font-bold">Multi-Select Component</h1>
-      <MultiSelect
-        options={catsList}
-        onValueChange={setSelectedCats}
-        defaultValue={selectedCats}
-        placeholder="Select cats"
-        variant="inverted"
-        animation={2}
-        maxCount={3}
-      />
-      <div className="mt-4">
-        <h2 className="text-xl font-semibold">Selected Cats:</h2>
-        <ul className="list-inside list-disc">
-          {selectedCats.map((cat) => (
-            <li key={cat}>{cat}</li>
-          ))}
-        </ul>
-      </div>
-    </div>
-  )
-}
-```
-
-### [FILE STRUCTURE](./STRUCTURE.md)
+- Website: [ardastroid.com](https://ardastroid.com)
+- Email: [hello@ardastroid.com](mailto:hello@ardastroid.com)
+- GitHub: [@ardzero](https://github.com/ardzero)
 
 ## License
 
 MIT License
 
-Copyright (c) 2024 Farhan Ashhab Nur / [@ardzero](https://github.com/ardzero)
+Copyright (c) 2026 Farhan Ashhab Nur / [@ardzero](https://github.com/ardzero)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
