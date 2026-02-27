@@ -1,0 +1,45 @@
+{
+	"name": "@ardly/bunext",
+	"description": "CLI tool to create Next.js 16 project using Bunext template (wrapper for create-bunext)",
+	"author": "Ard Astroid <ardastroid@gmail.com>",
+	"version": "2.0.0",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/ardzero/bunext.git",
+		"directory": "packages/bunext-wrapper"
+	},
+	"homepage": "https://bunext.ardastroid.com",
+	"bugs": {
+		"url": "https://github.com/ardzero/bunext/issues"
+	},
+	"bin": {
+		"bunext": "wrapper.js"
+	},
+	"type": "module",
+	"files": [
+		"wrapper.js",
+		"README.md"
+	],
+	"main": "./wrapper.js",
+	"engines": {
+		"node": ">=20.0.0"
+	},
+	"keywords": [
+		"next.js",
+		"nextjs16",
+		"react",
+		"typescript",
+		"tailwindcss",
+		"shadcn-ui",
+		"bun",
+		"template",
+		"starter",
+		"cli",
+		"create-app",
+		"boilerplate"
+	],
+	"dependencies": {
+		"create-bunext": "^0.1.0"
+	}
+}
