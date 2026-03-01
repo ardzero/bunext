@@ -9,6 +9,7 @@ import { resolve, dirname, join, basename } from "path";
 import { fileURLToPath } from "url";
 
 const REPO_URL = "https://github.com/ardzero/bunext.git";
+const REPO_LINK_PLACEHOLDER_PREFIX = "https://github.com/ardzero/";
 // Paths (files or folders) to remove from the created project. Relative to project root.
 const PATHS_TO_REMOVE: string[] = [
     "create-bunext",
@@ -55,6 +56,34 @@ function slugifyPackageName(name: string): string {
         .replace(/-+/g, "-")
         .replace(/^-|-$/g, "");
     return slug || "my-app";
+}
+
+function applyProjectReadme(projectRoot: string, nameForPackage: string): void {
+    const slug = slugifyPackageName(nameForPackage);
+    const repoLinkPlaceholder = `${REPO_LINK_PLACEHOLDER_PREFIX}${slug}`;
+    const projectReadmePath = resolve(projectRoot, "project_readme.md");
+    const readmePath = resolve(projectRoot, "README.md");
+    if (!existsSync(projectReadmePath)) return;
+    let content = readFileSync(projectReadmePath, "utf-8");
+    content = content
+        .replace(/\?\{project-name\}/g, nameForPackage)
+        .replace(/\?\{repo-link\}/g, repoLinkPlaceholder);
+    writeFileSync(readmePath, content);
+    rmSync(projectReadmePath, { force: true });
+}
+
+function replaceReadmeRepoPlaceholder(projectRoot: string, nameForPackage: string, remoteUrl: string): void {
+    const slug = slugifyPackageName(nameForPackage);
+    const placeholder = `${REPO_LINK_PLACEHOLDER_PREFIX}${slug}`;
+    const readmePath = resolve(projectRoot, "README.md");
+    if (!existsSync(readmePath)) return;
+    let content = readFileSync(readmePath, "utf-8");
+    const displayUrl = remoteUrl
+        .replace(/^git@github\.com:(.+?)(\.git)?$/, "https://github.com/$1")
+        .replace(/^git@gitlab\.com:(.+?)(\.git)?$/, "https://gitlab.com/$1")
+        .replace(/\.git$/i, "");
+    content = content.split(placeholder).join(displayUrl);
+    writeFileSync(readmePath, content);
 }
 
 function validateProjectName(name: string): string | undefined {
@@ -248,19 +277,18 @@ async function main(): Promise<void> {
         process.exit(1);
     }
 
+    const projectRoot = useCurrentDir ? process.cwd() : resolve(process.cwd(), projectName);
+    const nameForPackage = useCurrentDir ? basename(projectRoot) : projectName;
+
     // Remove .git directory and CLI-related folders
     s.start("Cleaning up");
     try {
-        const isWindows = process.platform === "win32";
         const targetDir = useCurrentDir ? tempDir : projectName;
 
         // Remove .git directory
-        if (isWindows) {
-            await execa("cmd", ["/c", "rmdir", "/s", "/q", `${targetDir}\\.git`], {
-                shell: true,
-            });
-        } else {
-            await execa("rm", ["-rf", `${targetDir}/.git`], { shell: true });
+        const gitPath = resolve(process.cwd(), targetDir, ".git");
+        if (existsSync(gitPath)) {
+            rmSync(gitPath, { recursive: true, force: true });
         }
 
         for (const pathToRemove of PATHS_TO_REMOVE) {
@@ -299,12 +327,24 @@ async function main(): Promise<void> {
             await copyDir(tempDir, process.cwd());
 
             // Remove temp directory
-            if (isWindows) {
-                await execa("cmd", ["/c", "rmdir", "/s", "/q", tempDir], {
-                    shell: true,
-                });
-            } else {
-                await execa("rm", ["-rf", tempDir], { shell: true });
+            const tempPath = resolve(process.cwd(), tempDir);
+            if (existsSync(tempPath)) {
+                rmSync(tempPath, { recursive: true, force: true });
+            }
+        }
+
+        applyProjectReadme(projectRoot, nameForPackage);
+
+        if (RENAME_PACKAGE_NAME) {
+            const packageJsonPath = resolve(projectRoot, "package.json");
+            if (existsSync(packageJsonPath)) {
+                try {
+                    const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf-8"));
+                    packageJson.name = slugifyPackageName(nameForPackage);
+                    writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2) + "\n");
+                } catch {
+                    // ignore
+                }
             }
         }
 
@@ -314,22 +354,6 @@ async function main(): Promise<void> {
         p.log.warn("Could not remove some directories");
         p.log.info("You can manually delete them later.");
         // Don't exit - this is not critical
-    }
-
-    if (RENAME_PACKAGE_NAME) {
-        // Set package.json name to project name
-        const projectRoot = useCurrentDir ? process.cwd() : resolve(process.cwd(), projectName);
-        const nameForPackage = useCurrentDir ? basename(projectRoot) : projectName;
-        const packageJsonPath = resolve(projectRoot, "package.json");
-        if (existsSync(packageJsonPath)) {
-            try {
-                const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf-8"));
-                packageJson.name = slugifyPackageName(nameForPackage);
-                writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2) + "\n");
-            } catch {
-                // ignore
-            }
-        }
     }
 
     // Detect package manager
@@ -521,6 +545,7 @@ async function main(): Promise<void> {
                             p.log.success(`Remote added: ${remoteUrl}`);
                             p.log.info("You can push later with: git push (auto-tracking enabled)");
                         }
+                        replaceReadmeRepoPlaceholder(projectRoot, nameForPackage, remoteUrl);
                     } catch (error: any) {
                         s.stop(shouldPush ? "Failed to connect and push" : "Failed to add remote");
 
