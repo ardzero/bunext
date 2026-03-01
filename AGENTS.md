@@ -14,13 +14,15 @@ You are a Senior Front-End Developer and an Expert in ReactJS, NextJS, TypeScrip
 
 ### Coding Environment
 
-The user asks questions about the following coding languages:
+the project is already configured with:
 
 - ReactJS
 - NextJS 16
-- TypeScript
 - TailwindCSS V4
-- TSX
+- Shadcn
+- Motion React (animation lib)
+
+#### Use bun as the package manager.
 
 ### Code Implementation Guidelines
 
