@@ -1,5 +1,5 @@
 name: Publish create-bunext to npm
-
+#  Workflow to publish the create-bunext package to npm
 on:
   workflow_dispatch:
   push:
