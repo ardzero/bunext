@@ -1,0 +1,59 @@
+name: Publish create-bunext to npm
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "packages/create-bunext/**"
+
+jobs:
+  publish:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      id-token: write
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        working-directory: packages/create-bunext
+        run: bun install
+
+      - name: Check if version is already published
+        id: version_check
+        working-directory: packages/create-bunext
+        run: |
+          PKG_NAME=$(node -p "require('./package.json').name")
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          echo "name=$PKG_NAME" >> $GITHUB_OUTPUT
+          echo "version=$PKG_VERSION" >> $GITHUB_OUTPUT
+
+          PUBLISHED=$(npm view "$PKG_NAME@$PKG_VERSION" version 2>/dev/null || echo "")
+          if [ "$PUBLISHED" = "$PKG_VERSION" ]; then
+            echo "already_published=true" >> $GITHUB_OUTPUT
+          else
+            echo "already_published=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Skip if already published
+        if: steps.version_check.outputs.already_published == 'true'
+        run: echo "Version ${{ steps.version_check.outputs.version }} already on npm. Skipping."
+
+      - name: Setup Node.js for publish
+        if: steps.version_check.outputs.already_published == 'false'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Publish to npm
+        if: steps.version_check.outputs.already_published == 'false'
+        working-directory: packages/create-bunext
+        run: npm publish --provenance --access public
