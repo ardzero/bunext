@@ -11,16 +11,19 @@ on:
 
 permissions:
   id-token: write
+  contents: write
 
 jobs:
-  publish-create-bunext:
-    name: Publish create-bunext
+  publish:
+    name: Publish packages
     runs-on: ubuntu-latest
     environment: npm
 
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -33,11 +36,11 @@ jobs:
       - name: Upgrade npm to latest
         run: npm install -g npm@latest
 
-      - name: Install dependencies
+      - name: Install create-bunext dependencies
         working-directory: packages/create-bunext
         run: bun install
 
-      - name: Check if version is already published
+      - name: Check if create-bunext version is already published
         id: version_check
         working-directory: packages/create-bunext
         run: |
@@ -57,56 +60,48 @@ jobs:
         if: steps.version_check.outputs.already_published == 'true'
         run: echo "Version ${{ steps.version_check.outputs.version }} already on npm. Skipping."
 
-      - name: Publish to npm
+      - name: Publish create-bunext
         if: steps.version_check.outputs.already_published == 'false'
         working-directory: packages/create-bunext
         run: npm publish --provenance --access public
 
-  publish-bunext-wrapper:
-    name: Publish @ardly/bunext
-    runs-on: ubuntu-latest
-    environment: npm
-
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      - name: Upgrade npm to latest
-        run: npm install -g npm@latest
-
-      - name: Install dependencies
-        working-directory: packages/bunext-wrapper
-        run: bun install
-
-      - name: Check if version is already published
-        id: version_check
-        working-directory: packages/bunext-wrapper
-        run: |
-          PKG_NAME=$(node -p "require('./package.json').name")
-          PKG_VERSION=$(node -p "require('./package.json').version")
-          echo "name=$PKG_NAME" >> $GITHUB_OUTPUT
-          echo "version=$PKG_VERSION" >> $GITHUB_OUTPUT
-
-          PUBLISHED=$(npm view "$PKG_NAME@$PKG_VERSION" version 2>/dev/null || echo "")
-          if [ "$PUBLISHED" = "$PKG_VERSION" ]; then
-            echo "already_published=true" >> $GITHUB_OUTPUT
-          else
-            echo "already_published=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Skip if already published
-        if: steps.version_check.outputs.already_published == 'true'
-        run: echo "Version ${{ steps.version_check.outputs.version }} already on npm. Skipping."
-
-      - name: Publish to npm
+      - name: Sync and publish @ardly/bunext wrapper
         if: steps.version_check.outputs.already_published == 'false'
         working-directory: packages/bunext-wrapper
-        run: npm publish --provenance --access public
+        run: |
+          CREATE_BUNEXT_VERSION="${{ steps.version_check.outputs.version }}"
+
+          # Get current wrapper version and compute new one by mirroring the version bump
+          WRAPPER_VERSION=$(node -p "require('./package.json').version")
+
+          # Extract semver parts from create-bunext version
+          CB_MAJOR=$(echo $CREATE_BUNEXT_VERSION | cut -d. -f1)
+          CB_MINOR=$(echo $CREATE_BUNEXT_VERSION | cut -d. -f2)
+          CB_PATCH=$(echo $CREATE_BUNEXT_VERSION | cut -d. -f3)
+
+          # Mirror onto wrapper's major offset (wrapper major stays +1 ahead)
+          WRAPPER_MAJOR=$((CB_MAJOR + 1))
+          NEW_WRAPPER_VERSION="$WRAPPER_MAJOR.$CB_MINOR.$CB_PATCH"
+
+          echo "Bumping wrapper from $WRAPPER_VERSION to $NEW_WRAPPER_VERSION"
+
+          # Update dependency and version in package.json
+          node -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            pkg.version = '$NEW_WRAPPER_VERSION';
+            pkg.dependencies['create-bunext'] = '^$CREATE_BUNEXT_VERSION';
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, '\t') + '\n');
+          "
+
+          bun install
+          npm publish --provenance --access public
+
+      - name: Commit updated wrapper package.json
+        if: steps.version_check.outputs.already_published == 'false'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add packages/bunext-wrapper/package.json
+          git commit -m "chore: sync @ardly/bunext wrapper to create-bunext@${{ steps.version_check.outputs.version }}"
+          git push
