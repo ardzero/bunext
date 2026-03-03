@@ -40,44 +40,51 @@ jobs:
         working-directory: packages/create-bunext
         run: bun install
 
-      - name: Check if create-bunext version is already published
+      - name: Check versions
         id: version_check
         working-directory: packages/create-bunext
         run: |
-          PKG_NAME=$(node -p "require('./package.json').name")
-          PKG_VERSION=$(node -p "require('./package.json').version")
-          echo "name=$PKG_NAME" >> $GITHUB_OUTPUT
-          echo "version=$PKG_VERSION" >> $GITHUB_OUTPUT
+          CB_NAME=$(node -p "require('./package.json').name")
+          CB_VERSION=$(node -p "require('./package.json').version")
+          echo "name=$CB_NAME" >> $GITHUB_OUTPUT
+          echo "version=$CB_VERSION" >> $GITHUB_OUTPUT
 
-          PUBLISHED=$(npm view "$PKG_NAME@$PKG_VERSION" version 2>/dev/null || echo "")
-          if [ "$PUBLISHED" = "$PKG_VERSION" ]; then
-            echo "already_published=true" >> $GITHUB_OUTPUT
+          # Check if create-bunext needs publishing
+          CB_PUBLISHED=$(npm view "$CB_NAME@$CB_VERSION" version 2>/dev/null || echo "")
+          if [ "$CB_PUBLISHED" = "$CB_VERSION" ]; then
+            echo "cb_already_published=true" >> $GITHUB_OUTPUT
           else
-            echo "already_published=false" >> $GITHUB_OUTPUT
+            echo "cb_already_published=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Skip if already published
-        if: steps.version_check.outputs.already_published == 'true'
-        run: echo "Version ${{ steps.version_check.outputs.version }} already on npm. Skipping."
+          # Compute what wrapper version should be
+          CB_MAJOR=$(echo $CB_VERSION | cut -d. -f1)
+          CB_MINOR=$(echo $CB_VERSION | cut -d. -f2)
+          CB_PATCH=$(echo $CB_VERSION | cut -d. -f3)
+          WRAPPER_MAJOR=$((CB_MAJOR + 1))
+          NEW_WRAPPER_VERSION="$WRAPPER_MAJOR.$CB_MINOR.$CB_PATCH"
+          echo "new_wrapper_version=$NEW_WRAPPER_VERSION" >> $GITHUB_OUTPUT
+
+          # Check if wrapper needs publishing
+          WRAPPER_PUBLISHED=$(npm view "@ardly/bunext@$NEW_WRAPPER_VERSION" version 2>/dev/null || echo "")
+          if [ "$WRAPPER_PUBLISHED" = "$NEW_WRAPPER_VERSION" ]; then
+            echo "wrapper_already_published=true" >> $GITHUB_OUTPUT
+          else
+            echo "wrapper_already_published=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Publish create-bunext
-        if: steps.version_check.outputs.already_published == 'false'
+        if: steps.version_check.outputs.cb_already_published == 'false'
         working-directory: packages/create-bunext
         run: npm publish --provenance --access public
 
       - name: Sync and publish @ardly/bunext wrapper
-        if: steps.version_check.outputs.already_published == 'false'
+        if: steps.version_check.outputs.wrapper_already_published == 'false'
         working-directory: packages/bunext-wrapper
         run: |
-          CREATE_BUNEXT_VERSION="${{ steps.version_check.outputs.version }}"
+          CB_VERSION="${{ steps.version_check.outputs.version }}"
+          NEW_WRAPPER_VERSION="${{ steps.version_check.outputs.new_wrapper_version }}"
           WRAPPER_VERSION=$(node -p "require('./package.json').version")
-
-          CB_MAJOR=$(echo $CREATE_BUNEXT_VERSION | cut -d. -f1)
-          CB_MINOR=$(echo $CREATE_BUNEXT_VERSION | cut -d. -f2)
-          CB_PATCH=$(echo $CREATE_BUNEXT_VERSION | cut -d. -f3)
-
-          WRAPPER_MAJOR=$((CB_MAJOR + 1))
-          NEW_WRAPPER_VERSION="$WRAPPER_MAJOR.$CB_MINOR.$CB_PATCH"
 
           echo "Bumping wrapper from $WRAPPER_VERSION to $NEW_WRAPPER_VERSION"
 
@@ -85,14 +92,14 @@ jobs:
             const fs = require('fs');
             const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
             pkg.version = '$NEW_WRAPPER_VERSION';
-            pkg.dependencies['create-bunext'] = '^$CREATE_BUNEXT_VERSION';
+            pkg.dependencies['create-bunext'] = '^$CB_VERSION';
             fs.writeFileSync('package.json', JSON.stringify(pkg, null, '\t') + '\n');
           "
 
-          echo "Waiting for create-bunext@$CREATE_BUNEXT_VERSION to propagate on npm..."
+          echo "Waiting for create-bunext@$CB_VERSION to be available on npm..."
           for i in {1..12}; do
-            FOUND=$(npm view "create-bunext@$CREATE_BUNEXT_VERSION" version 2>/dev/null || echo "")
-            if [ "$FOUND" = "$CREATE_BUNEXT_VERSION" ]; then
+            FOUND=$(npm view "create-bunext@$CB_VERSION" version 2>/dev/null || echo "")
+            if [ "$FOUND" = "$CB_VERSION" ]; then
               echo "Found on registry!"
               break
             fi
@@ -104,7 +111,7 @@ jobs:
           npm publish --provenance --access public
 
       - name: Commit updated wrapper package.json
-        if: steps.version_check.outputs.already_published == 'false'
+        if: steps.version_check.outputs.wrapper_already_published == 'false'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
