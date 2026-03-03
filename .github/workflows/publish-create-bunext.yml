@@ -46,16 +46,9 @@ jobs:
         if: steps.version_check.outputs.already_published == 'true'
         run: echo "Version ${{ steps.version_check.outputs.version }} already on npm. Skipping."
 
-      - name: Setup Node.js for publish
-        if: steps.version_check.outputs.already_published == 'false'
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          registry-url: "https://registry.npmjs.org"
-
       - name: Publish to npm
         if: steps.version_check.outputs.already_published == 'false'
         working-directory: packages/create-bunext
-        run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ""
+        run: |
+          npm config set registry https://registry.npmjs.org/
+          npm publish --provenance --access public
