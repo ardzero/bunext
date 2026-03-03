@@ -1,4 +1,4 @@
-name: Publish create-bunext to npm
+name: Publish npm packages
 
 on:
   workflow_dispatch:
@@ -7,13 +7,14 @@ on:
       - main
     paths:
       - "packages/create-bunext/**"
+      - "packages/bunext-wrapper/**"
 
 permissions:
   id-token: write
 
 jobs:
-  publish:
-    name: Publish to npm
+  publish-create-bunext:
+    name: Publish create-bunext
     runs-on: ubuntu-latest
     environment: npm
 
@@ -59,4 +60,53 @@ jobs:
       - name: Publish to npm
         if: steps.version_check.outputs.already_published == 'false'
         working-directory: packages/create-bunext
+        run: npm publish --provenance --access public
+
+  publish-bunext-wrapper:
+    name: Publish @ardly/bunext
+    runs-on: ubuntu-latest
+    environment: npm
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Upgrade npm to latest
+        run: npm install -g npm@latest
+
+      - name: Install dependencies
+        working-directory: packages/bunext-wrapper
+        run: bun install
+
+      - name: Check if version is already published
+        id: version_check
+        working-directory: packages/bunext-wrapper
+        run: |
+          PKG_NAME=$(node -p "require('./package.json').name")
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          echo "name=$PKG_NAME" >> $GITHUB_OUTPUT
+          echo "version=$PKG_VERSION" >> $GITHUB_OUTPUT
+
+          PUBLISHED=$(npm view "$PKG_NAME@$PKG_VERSION" version 2>/dev/null || echo "")
+          if [ "$PUBLISHED" = "$PKG_VERSION" ]; then
+            echo "already_published=true" >> $GITHUB_OUTPUT
+          else
+            echo "already_published=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Skip if already published
+        if: steps.version_check.outputs.already_published == 'true'
+        run: echo "Version ${{ steps.version_check.outputs.version }} already on npm. Skipping."
+
+      - name: Publish to npm
+        if: steps.version_check.outputs.already_published == 'false'
+        working-directory: packages/bunext-wrapper
         run: npm publish --provenance --access public
