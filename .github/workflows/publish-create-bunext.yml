@@ -59,3 +59,6 @@ jobs:
         run: |
           npm config set registry https://registry.npmjs.org/
           npm publish --provenance --access public
+        env:
+          ACTIONS_ID_TOKEN_REQUEST_TOKEN: ${{ env.ACTIONS_ID_TOKEN_REQUEST_TOKEN }}
+          ACTIONS_ID_TOKEN_REQUEST_URL: ${{ env.ACTIONS_ID_TOKEN_REQUEST_URL }}
