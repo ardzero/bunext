@@ -57,3 +57,5 @@ jobs:
         if: steps.version_check.outputs.already_published == 'false'
         working-directory: packages/create-bunext
         run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ""
