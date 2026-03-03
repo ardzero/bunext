@@ -2,7 +2,7 @@
 	"name": "@ardly/bunext",
 	"description": "CLI tool to create Next.js 16 project using Bunext template (wrapper for create-bunext)",
 	"author": "Ard Astroid <ardastroid@gmail.com>",
-	"version": "2.1.2",
+	"version": "2.1.3",
 	"license": "MIT",
 	"repository": {
 		"type": "git",
@@ -40,6 +40,6 @@
 		"boilerplate"
 	],
 	"dependencies": {
-		"create-bunext": "^1.1.2"
+		"create-bunext": "^1.1.3"
 	}
 }
