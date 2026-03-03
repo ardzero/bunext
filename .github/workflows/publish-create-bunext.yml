@@ -70,22 +70,17 @@ jobs:
         working-directory: packages/bunext-wrapper
         run: |
           CREATE_BUNEXT_VERSION="${{ steps.version_check.outputs.version }}"
-
-          # Get current wrapper version and compute new one by mirroring the version bump
           WRAPPER_VERSION=$(node -p "require('./package.json').version")
 
-          # Extract semver parts from create-bunext version
           CB_MAJOR=$(echo $CREATE_BUNEXT_VERSION | cut -d. -f1)
           CB_MINOR=$(echo $CREATE_BUNEXT_VERSION | cut -d. -f2)
           CB_PATCH=$(echo $CREATE_BUNEXT_VERSION | cut -d. -f3)
 
-          # Mirror onto wrapper's major offset (wrapper major stays +1 ahead)
           WRAPPER_MAJOR=$((CB_MAJOR + 1))
           NEW_WRAPPER_VERSION="$WRAPPER_MAJOR.$CB_MINOR.$CB_PATCH"
 
           echo "Bumping wrapper from $WRAPPER_VERSION to $NEW_WRAPPER_VERSION"
 
-          # Update dependency and version in package.json
           node -e "
             const fs = require('fs');
             const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
@@ -93,6 +88,17 @@ jobs:
             pkg.dependencies['create-bunext'] = '^$CREATE_BUNEXT_VERSION';
             fs.writeFileSync('package.json', JSON.stringify(pkg, null, '\t') + '\n');
           "
+
+          echo "Waiting for create-bunext@$CREATE_BUNEXT_VERSION to propagate on npm..."
+          for i in {1..12}; do
+            FOUND=$(npm view "create-bunext@$CREATE_BUNEXT_VERSION" version 2>/dev/null || echo "")
+            if [ "$FOUND" = "$CREATE_BUNEXT_VERSION" ]; then
+              echo "Found on registry!"
+              break
+            fi
+            echo "Not yet available, retrying in 10s... ($i/12)"
+            sleep 10
+          done
 
           bun install
           npm publish --provenance --access public
@@ -103,5 +109,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add packages/bunext-wrapper/package.json
-          git commit -m "chore: sync @ardly/bunext wrapper to create-bunext@${{ steps.version_check.outputs.version }}"
+          git commit -m "chore: sync @ardly/bunext to create-bunext@${{ steps.version_check.outputs.version }}"
           git push
