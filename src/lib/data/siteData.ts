@@ -6,8 +6,8 @@ export const siteData: TSiteData = {
     favicon: '/favicon.svg', // .svg / .ico / .png
     name: 'BUNEXT - Next.js 16 Bun Starter',
     shortName: 'BUNEXT',
-    publisher: 'bunext.ardastroid.com',
-    baseUrl: process.env.NEXT_PUBLIC_SITE_URL || "https://bunext.ardastroid.com",
+    publisher: 'bunext.ardzero.com',
+    baseUrl: process.env.NEXT_PUBLIC_SITE_URL || "https://bunext.ardzero.com",
     description:
         'BUNEXT is a opinionated Next.js 16 Starter Template setup with tailwindV4, shadcn, bun, next-themes, nuqs, react motion, feature flags, metadata generator, custom image components with lazy loading and auto generated placeholder, qr code generator, unique code generator etc.',
     ogImage: { src: "/ogImage.jpg", alt: "BUNEXT", width: 1200, height: 630 },

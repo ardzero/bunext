@@ -2,7 +2,7 @@
 
 # ?{project-name}
 
-An Nextjs website built on top of the [bunext](https://bunext.ardastroid.com/) starter kit.
+An Nextjs website built on top of the [bunext](https://bunext.ardzero.com/) starter kit.
 
 ### Project Repo: [?{project-name}](?{repo-link})
 

@@ -1,4 +1,4 @@
-[![Bunext](https://bunext.ardastroid.com/ogImage.jpg)](https://bunext.ardastroid.com/)
+[![Bunext](https://bunext.ardzero.com/ogImage.jpg)](https://bunext.ardzero.com/)
 
 # @ardly/bunext (bunext-wrapper)
 

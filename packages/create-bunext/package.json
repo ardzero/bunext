@@ -9,7 +9,7 @@
 		"url": "git+https://github.com/ardzero/bunext.git",
 		"directory": "packages/create-bunext"
 	},
-	"homepage": "https://bunext.ardastroid.com",
+	"homepage": "https://bunext.ardzero.com",
 	"bugs": {
 		"url": "https://github.com/ardzero/bunext/issues"
 	},

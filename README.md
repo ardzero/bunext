@@ -1,8 +1,8 @@
-[![Bunext](https://bunext.ardastroid.com/ogImage.jpg)](https://bunext.ardastroid.com/)
+[![Bunext](https://bunext.ardzero.com/ogImage.jpg)](https://bunext.ardzero.com/)
 
 # Bunext
 
-An opinionated Next.js 16 app template with Tailwind CSS, Shadcn, and Tailwind-motion, along with built-in utilities. [Live deployment](https://bunext.ardastroid.com/)
+An opinionated Next.js 16 app template with Tailwind CSS, Shadcn, and Tailwind-motion, along with built-in utilities. [Live deployment](https://bunext.ardzero.com/)
 Repo: [Github Repo](https://github.com/ardzero/bunext)
 
 ## Getting Started
