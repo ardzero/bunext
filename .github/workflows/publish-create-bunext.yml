@@ -8,13 +8,14 @@ on:
     paths:
       - "packages/create-bunext/**"
 
+permissions:
+  id-token: write
+
 jobs:
   publish:
     name: Publish to npm
     runs-on: ubuntu-latest
     environment: npm
-    permissions:
-      id-token: write
 
     steps:
       - name: Checkout repo
@@ -47,18 +48,9 @@ jobs:
         if: steps.version_check.outputs.already_published == 'true'
         run: echo "Version ${{ steps.version_check.outputs.version }} already on npm. Skipping."
 
-      - name: Debug OIDC token
-        if: steps.version_check.outputs.already_published == 'false'
-        run: |
-          TOKEN=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=npm" | jq -r '.value')
-          echo "$TOKEN" | cut -d. -f2 | base64 -d 2>/dev/null | jq .
-
       - name: Publish to npm
         if: steps.version_check.outputs.already_published == 'false'
         working-directory: packages/create-bunext
         run: |
           npm config set registry https://registry.npmjs.org/
           npm publish --provenance --access public
-        env:
-          ACTIONS_ID_TOKEN_REQUEST_TOKEN: ${{ env.ACTIONS_ID_TOKEN_REQUEST_TOKEN }}
-          ACTIONS_ID_TOKEN_REQUEST_URL: ${{ env.ACTIONS_ID_TOKEN_REQUEST_URL }}
