@@ -1,5 +1,5 @@
 name: Publish create-bunext to npm
-#  Workflow to publish the create-bunext package to npm
+
 on:
   workflow_dispatch:
   push:
@@ -23,6 +23,14 @@ jobs:
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Upgrade npm to latest
+        run: npm install -g npm@latest
 
       - name: Install dependencies
         working-directory: packages/create-bunext
@@ -51,6 +59,4 @@ jobs:
       - name: Publish to npm
         if: steps.version_check.outputs.already_published == 'false'
         working-directory: packages/create-bunext
-        run: |
-          npm config set registry https://registry.npmjs.org/
-          npm publish --provenance --access public
+        run: npm publish --provenance --access public
