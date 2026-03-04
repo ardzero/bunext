@@ -23,7 +23,7 @@ export function Home({ className, props }: THome) {
 				<CodeBlock code={code} language="bash" />
 				<div className="flex flex-wrap items-center">
 					<Button variant={"ghost"} asChild>
-						<CLink href="https://github.com/ardzero/bunestro">
+						<CLink href="https://github.com/ardzero/bunext">
 							<Icons.github /> GitHub
 						</CLink>
 					</Button>
