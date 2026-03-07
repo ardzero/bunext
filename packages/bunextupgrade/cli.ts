@@ -60,6 +60,30 @@ function detectPackageManager(): PackageManager {
     return "npm";
 }
 
+async function getRemoteOriginUrl(cwd: string): Promise<string | null> {
+    try {
+        const { stdout } = await execa("git", ["remote", "get-url", "origin"], { cwd });
+        return (stdout?.trim()) || null;
+    } catch {
+        return null;
+    }
+}
+
+function getRepoNameFromUrl(url: string): string {
+    const trimmed = url.trim().replace(/\.git$/i, "");
+    const parts = trimmed.split("/").filter(Boolean);
+    return parts[parts.length - 1] || "my-app";
+}
+
+function normalizeRepoUrlToHttps(url: string): string {
+    const trimmed = url.trim().replace(/\.git$/i, "");
+    if (trimmed.startsWith("git@")) {
+        const match = trimmed.match(/^git@([^:]+):(.+)$/);
+        if (match) return `https://${match[1]}/${match[2]}`;
+    }
+    return trimmed;
+}
+
 function getVersion(): string {
     try {
         const __filename = fileURLToPath(import.meta.url);
@@ -82,16 +106,15 @@ function slugifyPackageName(name: string): string {
     return slug || "my-app";
 }
 
-function applyProjectReadme(projectRoot: string, nameForPackage: string): void {
-    const slug = slugifyPackageName(nameForPackage);
-    const repoLinkPlaceholder = `${REPO_LINK_PLACEHOLDER_PREFIX}${slug}`;
+function applyProjectReadme(projectRoot: string, nameForPackage: string, repoUrl: string | null): void {
+    const repoLink = repoUrl ? normalizeRepoUrlToHttps(repoUrl) : `${REPO_LINK_PLACEHOLDER_PREFIX}${slugifyPackageName(nameForPackage)}`;
     const projectReadmePath = resolve(projectRoot, "project_readme.md");
     const readmePath = resolve(projectRoot, "README.md");
     if (!existsSync(projectReadmePath)) return;
     let content = readFileSync(projectReadmePath, "utf-8");
     content = content
         .replace(/\?\{project-name\}/g, nameForPackage)
-        .replace(/\?\{repo-link\}/g, repoLinkPlaceholder);
+        .replace(/\?\{repo-link\}/g, repoLink);
     writeFileSync(readmePath, content);
     rmSync(projectReadmePath, { force: true });
 }
@@ -264,21 +287,25 @@ async function main(): Promise<void> {
         // ignore
     }
 
-    const currentDirName = basename(cwd);
+    const remoteUrl = await getRemoteOriginUrl(cwd);
+    const remoteRepoName = remoteUrl ? getRepoNameFromUrl(remoteUrl) : null;
     const nameChoice = await p.select({
         message: "Project name for README / repo link",
         options: [
-            { value: "current", label: `Use current directory name (${currentDirName})` },
+            {
+                value: "remote",
+                label: remoteRepoName ? `Use remote repo name (${remoteRepoName})` : "Use remote repo name (no remote configured)",
+            },
             { value: "custom", label: "Enter a custom name" },
         ],
-        initialValue: "current",
+        initialValue: remoteRepoName ? "remote" : "custom",
     });
     if (p.isCancel(nameChoice)) {
         p.cancel("Operation cancelled");
         process.exit(0);
     }
-    if (nameChoice === "current") {
-        nameForPackage = currentDirName;
+    if (nameChoice === "remote" && remoteRepoName) {
+        nameForPackage = remoteRepoName;
     } else {
         const customName = await p.text({
             message: "Package / project name",
@@ -295,7 +322,7 @@ async function main(): Promise<void> {
         nameForPackage = (customName as string).trim();
     }
 
-    applyProjectReadme(tempRoot, nameForPackage);
+    applyProjectReadme(tempRoot, nameForPackage, remoteUrl);
     s.stop("Template cleaned");
 
     const oldPublic = resolve(cwd, "public");
@@ -356,6 +383,17 @@ async function main(): Promise<void> {
 
     s.stop("Preserved public assets and site data");
 
+    let templateVersion = getVersion();
+    try {
+        const templatePkgPath = resolve(tempRoot, "package.json");
+        if (existsSync(templatePkgPath)) {
+            const templatePkg = JSON.parse(readFileSync(templatePkgPath, "utf-8"));
+            if (typeof templatePkg.version === "string") templateVersion = templatePkg.version;
+        }
+    } catch {
+        // keep getVersion() fallback
+    }
+
     s.start("Creating backup");
     createBackup(cwd);
     s.stop("Backup created");
@@ -392,8 +430,40 @@ async function main(): Promise<void> {
         process.exit(1);
     }
 
-    const didUndo = await offerUndo(cwd, "success");
-    p.outro(didUndo ? color.yellow("Upgrade reverted. Your project is back to its previous state.") : color.green("Project upgraded successfully."));
+    const commitMessage = `upgraded and refresh to the bunext template version ${templateVersion}`;
+    const nextChoice = await p.select({
+        message: "What would you like to do next?",
+        options: [
+            { value: "undo", label: "Undo upgrade and restore previous state" },
+            { value: "commit", label: `Commit and push (${commitMessage})` },
+        ],
+        initialValue: "commit",
+    });
+    if (p.isCancel(nextChoice)) process.exit(0);
+
+    if (nextChoice === "undo") {
+        const spinner = p.spinner();
+        spinner.start("Reverting…");
+        undoUpgrade(cwd);
+        spinner.stop("Reverted.");
+        p.outro(color.yellow("Upgrade reverted. Your project is back to its previous state."));
+        return;
+    }
+
+    s.start("Committing and pushing");
+    try {
+        await execa("git", ["add", "-A"], { cwd });
+        await execa("git", ["commit", "-m", commitMessage], { cwd });
+        await execa("git", ["push"], { cwd });
+        s.stop("Committed and pushed");
+    } catch (err: unknown) {
+        s.stop("Commit or push failed");
+        const msg = err instanceof Error ? err.message : String(err);
+        p.log.error(msg);
+        p.outro(color.yellow("Upgrade completed locally. Fix git state and push manually if needed."));
+        return;
+    }
+    p.outro(color.green("Project upgraded successfully and pushed to remote."));
 }
 
 main().catch((err: unknown) => {
