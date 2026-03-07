@@ -49,6 +49,17 @@ const PUBLIC_EXCLUDE_PREFIX = "loading-dots"; // exclude loading-dots.gif, loadi
 const TEMPLATE_DEFAULT_FAVICON = "favicon.svg";
 const TEMPLATE_DEFAULT_OG_IMAGE = "ogImage.jpg";
 
+type PackageManager = "bun" | "pnpm" | "yarn" | "npm";
+
+function detectPackageManager(): PackageManager {
+    if (typeof (globalThis as unknown as { Bun?: unknown }).Bun !== "undefined") return "bun";
+    if (process.env.npm_execpath?.includes("bun")) return "bun";
+    if (process.argv[1]?.includes("bunx")) return "bun";
+    if (process.env.npm_execpath?.includes("pnpm")) return "pnpm";
+    if (process.env.npm_execpath?.includes("yarn")) return "yarn";
+    return "npm";
+}
+
 function getVersion(): string {
     try {
         const __filename = fileURLToPath(import.meta.url);
@@ -367,6 +378,19 @@ async function main(): Promise<void> {
         process.exit(1);
     }
     s.stop("Upgrade complete");
+
+    const packageManager = detectPackageManager();
+    s.start(`Installing dependencies (${packageManager})`);
+    try {
+        await execa(packageManager, ["install"], { cwd });
+        s.stop("Dependencies installed");
+    } catch (err: unknown) {
+        s.stop("Install failed");
+        const msg = err instanceof Error ? err.message : String(err);
+        p.log.error(msg);
+        await offerUndo(cwd, "error");
+        process.exit(1);
+    }
 
     const didUndo = await offerUndo(cwd, "success");
     p.outro(didUndo ? color.yellow("Upgrade reverted. Your project is back to its previous state.") : color.green("Project upgraded successfully."));
