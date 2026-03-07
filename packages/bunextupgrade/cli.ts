@@ -13,7 +13,7 @@ import {
     copyFileSync,
     mkdirSync,
 } from "fs";
-import { resolve, dirname, join } from "path";
+import { resolve, dirname, join, basename } from "path";
 import { fileURLToPath } from "url";
 
 const argv = yargs(hideBin(process.argv))
@@ -193,6 +193,38 @@ async function main(): Promise<void> {
     } catch {
         // ignore
     }
+
+    const currentDirName = basename(cwd);
+    const nameChoice = await p.select({
+        message: "Project name for README / repo link",
+        options: [
+            { value: "current", label: `Use current directory name (${currentDirName})` },
+            { value: "custom", label: "Enter a custom name" },
+        ],
+        initialValue: "current",
+    });
+    if (p.isCancel(nameChoice)) {
+        p.cancel("Operation cancelled");
+        process.exit(0);
+    }
+    if (nameChoice === "current") {
+        nameForPackage = currentDirName;
+    } else {
+        const customName = await p.text({
+            message: "Package / project name",
+            initialValue: nameForPackage,
+            validate: (v) => {
+                if (!v?.trim()) return "Name is required";
+                return undefined;
+            },
+        });
+        if (p.isCancel(customName)) {
+            p.cancel("Operation cancelled");
+            process.exit(0);
+        }
+        nameForPackage = (customName as string).trim();
+    }
+
     applyProjectReadme(tempRoot, nameForPackage);
     s.stop("Template cleaned");
 
