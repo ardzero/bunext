@@ -6,6 +6,8 @@
 /packages/create-bunext/dist/
 /packages/bunext-wrapper/node_modules/
 /packages/bunext-wrapper/dist/
+/packages/bunextupgrade/node_modules/
+/packages/bunextupgrade/dist/
 /.pnp
 .pnp.*
 .yarn/*
