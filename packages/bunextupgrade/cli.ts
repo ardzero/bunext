@@ -22,6 +22,7 @@ const argv = yargs(hideBin(process.argv))
     .parseSync() as { h?: boolean; v?: boolean };
 
 const REPO_URL = "https://github.com/ardzero/bunext.git";
+const REPO_LINK_PLACEHOLDER_PREFIX = "https://github.com/ardzero/";
 const TEMP_DIR = ".bunext-upgrade-temp";
 const PATHS_TO_REMOVE: string[] = [
     "create-bunext",
@@ -42,6 +43,7 @@ const PUBLIC_PRESERVE_NAMES = [
     "android-chrome-512x512.png",
     "site.webmanifest",
 ] as const;
+const PUBLIC_EXCLUDE_PREFIX = "loading-dots"; // exclude loading-dots.gif, loading-dots.webp, etc.
 
 const TEMPLATE_DEFAULT_FAVICON = "favicon.svg";
 const TEMPLATE_DEFAULT_OG_IMAGE = "ogImage.jpg";
@@ -58,6 +60,30 @@ function getVersion(): string {
     }
 }
 
+function slugifyPackageName(name: string): string {
+    const slug = name
+        .toLowerCase()
+        .replace(/[\s_]+/g, "-")
+        .replace(/[^a-z0-9-]/g, "")
+        .replace(/-+/g, "-")
+        .replace(/^-|-$/g, "");
+    return slug || "my-app";
+}
+
+function applyProjectReadme(projectRoot: string, nameForPackage: string): void {
+    const slug = slugifyPackageName(nameForPackage);
+    const repoLinkPlaceholder = `${REPO_LINK_PLACEHOLDER_PREFIX}${slug}`;
+    const projectReadmePath = resolve(projectRoot, "project_readme.md");
+    const readmePath = resolve(projectRoot, "README.md");
+    if (!existsSync(projectReadmePath)) return;
+    let content = readFileSync(projectReadmePath, "utf-8");
+    content = content
+        .replace(/\?\{project-name\}/g, nameForPackage)
+        .replace(/\?\{repo-link\}/g, repoLinkPlaceholder);
+    writeFileSync(readmePath, content);
+    rmSync(projectReadmePath, { force: true });
+}
+
 function isBunextProject(cwd: string): { ok: true } | { ok: false; missing: string } {
     for (const path of REQUIRED_PATHS) {
         const full = resolve(cwd, path);
@@ -68,13 +94,13 @@ function isBunextProject(cwd: string): { ok: true } | { ok: false; missing: stri
     return { ok: true };
 }
 
-function extractSiteDataBlock(content: string): string | null {
+function extractSiteDataBlock(content: string): { block: string; start: number; end: number } | null {
     const start = content.indexOf("export const siteData");
     if (start === -1) return null;
-    const assignStart = content.indexOf("= {", start);
-    if (assignStart === -1) return null;
+    const braceStart = content.indexOf("{", start);
+    if (braceStart === -1) return null;
     let depth = 1;
-    let i = assignStart + 3;
+    let i = braceStart + 1;
     while (i < content.length && depth > 0) {
         const c = content[i];
         if (c === "{") depth++;
@@ -82,7 +108,9 @@ function extractSiteDataBlock(content: string): string | null {
         i++;
     }
     if (depth !== 0) return null;
-    return content.slice(start, content.indexOf(";", i) + 1);
+    const semi = content.indexOf(";", i);
+    const end = semi === -1 ? i : semi + 1;
+    return { block: content.slice(start, end), start, end };
 }
 
 function getFaviconPathFromSiteData(content: string): string | null {
@@ -93,14 +121,6 @@ function getFaviconPathFromSiteData(content: string): string | null {
 function getOgImagePathFromSiteData(content: string): string | null {
     const m = content.match(/ogImage:\s*\{\s*src:\s*['"]([^'"]+)['"]/);
     return m ? m[1] : null;
-}
-
-function findPublicFile(publicDir: string, baseName: string, extensions: string[]): string | null {
-    for (const ext of extensions) {
-        const path = join(publicDir, baseName + ext);
-        if (existsSync(path)) return path;
-    }
-    return null;
 }
 
 function copyDirSync(src: string, dest: string, skipGit = false): void {
@@ -116,15 +136,6 @@ function copyDirSync(src: string, dest: string, skipGit = false): void {
             mkdirSync(dirname(destPath), { recursive: true });
             copyFileSync(srcPath, destPath);
         }
-    }
-}
-
-function clearDirExcept(dir: string, keep: string): void {
-    const entries = readdirSync(dir, { withFileTypes: true });
-    for (const entry of entries) {
-        if (entry.name === keep) continue;
-        const full = join(dir, entry.name);
-        rmSync(full, { recursive: true, force: true });
     }
 }
 
@@ -172,6 +183,17 @@ async function main(): Promise<void> {
         const full = resolve(tempRoot, pathToRemove);
         if (existsSync(full)) rmSync(full, { recursive: true, force: true });
     }
+    let nameForPackage = "my-app";
+    try {
+        const pkgPath = resolve(cwd, "package.json");
+        if (existsSync(pkgPath)) {
+            const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
+            if (typeof pkg.name === "string") nameForPackage = pkg.name;
+        }
+    } catch {
+        // ignore
+    }
+    applyProjectReadme(tempRoot, nameForPackage);
     s.stop("Template cleaned");
 
     const oldPublic = resolve(cwd, "public");
@@ -184,10 +206,16 @@ async function main(): Promise<void> {
 
     s.start("Preserving your public assets and site data");
 
-    for (const name of PUBLIC_PRESERVE_NAMES) {
-        const src = join(oldPublic, name);
-        const dest = join(newPublic, name);
-        if (existsSync(src)) {
+    mkdirSync(newPublic, { recursive: true });
+    const oldPublicEntries = readdirSync(oldPublic, { withFileTypes: true });
+    for (const entry of oldPublicEntries) {
+        if (entry.name.startsWith(PUBLIC_EXCLUDE_PREFIX)) continue;
+        const src = join(oldPublic, entry.name);
+        const dest = join(newPublic, entry.name);
+        if (entry.isDirectory()) {
+            mkdirSync(dest, { recursive: true });
+            copyDirSync(src, dest, false);
+        } else {
             mkdirSync(dirname(dest), { recursive: true });
             copyFileSync(src, dest);
         }
@@ -211,12 +239,15 @@ async function main(): Promise<void> {
         }
     }
 
-    const oldBlock = extractSiteDataBlock(oldSiteDataContent);
-    if (oldBlock && existsSync(newSiteDataPath)) {
+    const oldBlockResult = extractSiteDataBlock(oldSiteDataContent);
+    if (oldBlockResult && existsSync(newSiteDataPath)) {
         const newContent = readFileSync(newSiteDataPath, "utf-8");
-        const newBlock = extractSiteDataBlock(newContent);
-        if (newBlock) {
-            const replaced = newContent.replace(newBlock, oldBlock);
+        const newBlockResult = extractSiteDataBlock(newContent);
+        if (newBlockResult) {
+            const replaced =
+                newContent.slice(0, newBlockResult.start) +
+                oldBlockResult.block +
+                newContent.slice(newBlockResult.end);
             writeFileSync(newSiteDataPath, replaced);
         }
     }
