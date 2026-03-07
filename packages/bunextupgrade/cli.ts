@@ -24,6 +24,7 @@ const argv = yargs(hideBin(process.argv))
 const REPO_URL = "https://github.com/ardzero/bunext.git";
 const REPO_LINK_PLACEHOLDER_PREFIX = "https://github.com/ardzero/";
 const TEMP_DIR = ".bunext-upgrade-temp";
+const BACKUP_DIR = ".bunext-upgrade-backup";
 const PATHS_TO_REMOVE: string[] = [
     "create-bunext",
     "packages",
@@ -137,6 +138,68 @@ function copyDirSync(src: string, dest: string, skipGit = false): void {
             copyFileSync(srcPath, destPath);
         }
     }
+}
+
+function createBackup(cwd: string): void {
+    const backupPath = resolve(cwd, BACKUP_DIR);
+    if (existsSync(backupPath)) rmSync(backupPath, { recursive: true, force: true });
+    mkdirSync(backupPath, { recursive: true });
+    const entries = readdirSync(cwd, { withFileTypes: true });
+    for (const entry of entries) {
+        if (entry.name === ".git" || entry.name === TEMP_DIR) continue;
+        const srcPath = join(cwd, entry.name);
+        const destPath = join(backupPath, entry.name);
+        if (entry.isDirectory()) {
+            mkdirSync(destPath, { recursive: true });
+            copyDirSync(srcPath, destPath, false);
+        } else {
+            copyFileSync(srcPath, destPath);
+        }
+    }
+}
+
+function undoUpgrade(cwd: string): void {
+    const backupPath = resolve(cwd, BACKUP_DIR);
+    if (!existsSync(backupPath)) {
+        p.log.error("No backup found. Cannot undo.");
+        return;
+    }
+    const entries = readdirSync(cwd, { withFileTypes: true });
+    for (const entry of entries) {
+        if (entry.name === ".git" || entry.name === BACKUP_DIR) continue;
+        const full = join(cwd, entry.name);
+        rmSync(full, { recursive: true, force: true });
+    }
+    const backupEntries = readdirSync(backupPath, { withFileTypes: true });
+    for (const entry of backupEntries) {
+        const srcPath = join(backupPath, entry.name);
+        const destPath = join(cwd, entry.name);
+        if (entry.isDirectory()) {
+            mkdirSync(destPath, { recursive: true });
+            copyDirSync(srcPath, destPath, false);
+        } else {
+            copyFileSync(srcPath, destPath);
+        }
+    }
+    rmSync(backupPath, { recursive: true, force: true });
+    p.log.success("Reverted to pre-upgrade state.");
+}
+
+async function offerUndo(cwd: string, context: "error" | "success"): Promise<boolean> {
+    const message =
+        context === "error"
+            ? "Do you want to undo all changes and restore your project?"
+            : "Do you want to undo the upgrade and restore your previous project?";
+    const response = await p.confirm({ message, initialValue: false });
+    if (p.isCancel(response)) process.exit(0);
+    if (response) {
+        const spinner = p.spinner();
+        spinner.start("Reverting…");
+        undoUpgrade(cwd);
+        spinner.stop("Reverted.");
+        return true;
+    }
+    return false;
 }
 
 async function main(): Promise<void> {
@@ -286,18 +349,31 @@ async function main(): Promise<void> {
 
     s.stop("Preserved public assets and site data");
 
+    s.start("Creating backup");
+    createBackup(cwd);
+    s.stop("Backup created");
+
     s.start("Replacing project with upgraded files");
-    const entries = readdirSync(cwd, { withFileTypes: true });
-    for (const entry of entries) {
-        if (entry.name === ".git" || entry.name === TEMP_DIR) continue;
-        const full = join(cwd, entry.name);
-        rmSync(full, { recursive: true, force: true });
+    try {
+        const entries = readdirSync(cwd, { withFileTypes: true });
+        for (const entry of entries) {
+            if (entry.name === ".git" || entry.name === TEMP_DIR || entry.name === BACKUP_DIR) continue;
+            const full = join(cwd, entry.name);
+            rmSync(full, { recursive: true, force: true });
+        }
+        copyDirSync(tempRoot, cwd, false);
+        rmSync(tempRoot, { recursive: true, force: true });
+    } catch (err: unknown) {
+        s.stop("Replace failed");
+        const msg = err instanceof Error ? err.message : String(err);
+        p.log.error(msg);
+        await offerUndo(cwd, "error");
+        process.exit(1);
     }
-    copyDirSync(tempRoot, cwd, false);
-    rmSync(tempRoot, { recursive: true, force: true });
     s.stop("Upgrade complete");
 
-    p.outro(color.green("Project upgraded successfully."));
+    const didUndo = await offerUndo(cwd, "success");
+    p.outro(didUndo ? color.yellow("Upgrade reverted. Your project is back to its previous state.") : color.green("Project upgraded successfully."));
 }
 
 main().catch((err: unknown) => {
