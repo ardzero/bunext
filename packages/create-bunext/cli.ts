@@ -67,7 +67,8 @@ function applyProjectReadme(projectRoot: string, nameForPackage: string): void {
     let content = readFileSync(projectReadmePath, "utf-8");
     content = content
         .replace(/\?\{project-name\}/g, nameForPackage)
-        .replace(/\?\{repo-link\}/g, repoLinkPlaceholder);
+        .replace(/\?\{repo-link\}/g, repoLinkPlaceholder)
+        .replace(/\?\{og-image-path\}/g, "ogImage.jpg");
     writeFileSync(readmePath, content);
     rmSync(projectReadmePath, { force: true });
 }

@@ -1,4 +1,4 @@
-[![?{project-name}](?{repo-link}/blob/main/public/ogImage.jpg)](?{repo-link})
+[![?{project-name}](?{repo-link}/blob/main/public/?{og-image-path})](?{repo-link})
 
 # ?{project-name}
 

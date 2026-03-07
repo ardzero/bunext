@@ -39,11 +39,11 @@ const REQUIRED_PATHS = [
     "src/lib/data/siteData.ts",
 ] as const;
 
-const PUBLIC_PRESERVE_NAMES = [
-    "android-chrome-192x192.png",
-    "android-chrome-512x512.png",
-    "site.webmanifest",
-] as const;
+// const PUBLIC_PRESERVE_NAMES = [
+//     "android-chrome-192x192.png",
+//     "android-chrome-512x512.png",
+//     "site.webmanifest",
+// ] as const;
 const PUBLIC_EXCLUDE_PREFIX = "loading-dots"; // exclude loading-dots.gif, loading-dots.webp, etc.
 
 const TEMPLATE_DEFAULT_FAVICON = "favicon.svg";
@@ -106,15 +106,22 @@ function slugifyPackageName(name: string): string {
     return slug || "my-app";
 }
 
-function applyProjectReadme(projectRoot: string, nameForPackage: string, repoUrl: string | null): void {
+function applyProjectReadme(
+    projectRoot: string,
+    nameForPackage: string,
+    repoUrl: string | null,
+    ogImagePath: string | null,
+): void {
     const repoLink = repoUrl ? normalizeRepoUrlToHttps(repoUrl) : `${REPO_LINK_PLACEHOLDER_PREFIX}${slugifyPackageName(nameForPackage)}`;
+    const ogImageSegment = ogImagePath ? ogImagePath.replace(/^\//, "") : TEMPLATE_DEFAULT_OG_IMAGE;
     const projectReadmePath = resolve(projectRoot, "project_readme.md");
     const readmePath = resolve(projectRoot, "README.md");
     if (!existsSync(projectReadmePath)) return;
     let content = readFileSync(projectReadmePath, "utf-8");
     content = content
         .replace(/\?\{project-name\}/g, nameForPackage)
-        .replace(/\?\{repo-link\}/g, repoLink);
+        .replace(/\?\{repo-link\}/g, repoLink)
+        .replace(/\?\{og-image-path\}/g, ogImageSegment);
     writeFileSync(readmePath, content);
     rmSync(projectReadmePath, { force: true });
 }
@@ -219,6 +226,26 @@ function undoUpgrade(cwd: string): void {
     p.log.success("Reverted to pre-upgrade state.");
 }
 
+function addToGitignore(cwd: string, entry: string): void {
+    const gitignorePath = resolve(cwd, ".gitignore");
+    const content = existsSync(gitignorePath) ? readFileSync(gitignorePath, "utf-8") : "";
+    const line = entry.startsWith("/") ? entry : `/${entry}`;
+    if (content.includes(entry) || content.includes(line)) return;
+    const suffix = content.endsWith("\n") ? "" : "\n";
+    writeFileSync(gitignorePath, content + suffix + entry + "\n");
+}
+
+function addToTsconfigExclude(cwd: string, entry: string): void {
+    const tsconfigPath = resolve(cwd, "tsconfig.json");
+    if (!existsSync(tsconfigPath)) return;
+    const content = readFileSync(tsconfigPath, "utf-8");
+    const tsconfig = JSON.parse(content) as { exclude?: string[] };
+    const exclude = tsconfig.exclude ?? [];
+    if (exclude.includes(entry)) return;
+    tsconfig.exclude = [...exclude, entry];
+    writeFileSync(tsconfigPath, JSON.stringify(tsconfig, null, "\t"));
+}
+
 async function offerUndo(cwd: string, context: "error" | "success"): Promise<boolean> {
     const message =
         context === "error"
@@ -287,6 +314,13 @@ async function main(): Promise<void> {
         // ignore
     }
 
+    const oldSiteDataPath = resolve(cwd, "src/lib/data/siteData.ts");
+    let ogImagePathForReadme: string | null = null;
+    if (existsSync(oldSiteDataPath)) {
+        const oldSiteDataContent = readFileSync(oldSiteDataPath, "utf-8");
+        ogImagePathForReadme = getOgImagePathFromSiteData(oldSiteDataContent);
+    }
+
     const remoteUrl = await getRemoteOriginUrl(cwd);
     const remoteRepoName = remoteUrl ? getRepoNameFromUrl(remoteUrl) : null;
     const nameChoice = await p.select({
@@ -322,12 +356,11 @@ async function main(): Promise<void> {
         nameForPackage = (customName as string).trim();
     }
 
-    applyProjectReadme(tempRoot, nameForPackage, remoteUrl);
+    applyProjectReadme(tempRoot, nameForPackage, remoteUrl, ogImagePathForReadme);
     s.stop("Template cleaned");
 
     const oldPublic = resolve(cwd, "public");
     const newPublic = resolve(tempRoot, "public");
-    const oldSiteDataPath = resolve(cwd, "src/lib/data/siteData.ts");
     const newSiteDataPath = resolve(tempRoot, "src/lib/data/siteData.ts");
     const oldSiteDataContent = readFileSync(oldSiteDataPath, "utf-8");
     const faviconPath = getFaviconPathFromSiteData(oldSiteDataContent);
@@ -448,6 +481,31 @@ async function main(): Promise<void> {
         spinner.stop("Reverted.");
         p.outro(color.yellow("Upgrade reverted. Your project is back to its previous state."));
         return;
+    }
+
+    const backupPath = resolve(cwd, BACKUP_DIR);
+    const hasBackup = existsSync(backupPath);
+
+    if (hasBackup) {
+        const keepBackup = await p.confirm({
+            message: `Keep the backup folder (${BACKUP_DIR})?`,
+            initialValue: false,
+        });
+        if (p.isCancel(keepBackup)) process.exit(0);
+        if (!keepBackup) {
+            rmSync(backupPath, { recursive: true, force: true });
+        } else {
+            const ignoreWhenCommit = await p.confirm({
+                message: "Ignore backup when committing? (add to .gitignore, keep locally)",
+                initialValue: true,
+            });
+            if (p.isCancel(ignoreWhenCommit)) process.exit(0);
+            if (ignoreWhenCommit) {
+                addToGitignore(cwd, BACKUP_DIR);
+            } else {
+                addToTsconfigExclude(cwd, BACKUP_DIR);
+            }
+        }
     }
 
     s.start("Committing and pushing");
