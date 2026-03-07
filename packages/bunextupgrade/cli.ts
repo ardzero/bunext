@@ -18,8 +18,8 @@ import { fileURLToPath } from "url";
 
 const argv = yargs(hideBin(process.argv))
     .option("h", { alias: "help", type: "boolean" })
-    .option("v", { alias: "version", type: "boolean" })
-    .parseSync() as { h?: boolean; v?: boolean };
+    .version("version", "Show version number", getVersion())
+    .parseSync() as { h?: boolean };
 
 const REPO_URL = "https://github.com/ardzero/bunext.git";
 const REPO_LINK_PLACEHOLDER_PREFIX = "https://github.com/ardzero/";
@@ -146,7 +146,7 @@ function createBackup(cwd: string): void {
     mkdirSync(backupPath, { recursive: true });
     const entries = readdirSync(cwd, { withFileTypes: true });
     for (const entry of entries) {
-        if (entry.name === ".git" || entry.name === TEMP_DIR) continue;
+        if (entry.name === ".git" || entry.name === TEMP_DIR || entry.name === BACKUP_DIR) continue;
         const srcPath = join(cwd, entry.name);
         const destPath = join(backupPath, entry.name);
         if (entry.isDirectory()) {
@@ -203,10 +203,6 @@ async function offerUndo(cwd: string, context: "error" | "success"): Promise<boo
 }
 
 async function main(): Promise<void> {
-    if (argv.v) {
-        console.log(getVersion());
-        process.exit(0);
-    }
     if (argv.h) {
         console.log("Usage: bunextupgrade");
         console.log("  Upgrade an existing Bunext project to the latest template.");
