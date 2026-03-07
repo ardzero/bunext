@@ -9,6 +9,7 @@ export const metadata: Metadata = siteMetaData;
 export const viewport: Viewport = viewportData;
 // css
 import "@/styles/globals.css";
+import "@/styles/scroll-fade.css";
 // utilities
 import { cn } from "@/lib/utils";
 import { fonts } from "@/styles/fonts";
