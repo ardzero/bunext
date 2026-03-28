@@ -161,6 +161,14 @@
 }
 
 /* utilites */
+@utility testb {
+	border: 1px solid red;
+}
+@utility testb-* {
+	border-width: 1px;
+	border-style: solid;
+	border-color: --value(--color-*, [color]);
+}
 @utility pre {
 	white-space: pre;
 }
