@@ -287,7 +287,9 @@ export function getSiteJsonLd(): Graph {
     }
     const logo: ImageObject = {
         '@type': 'ImageObject',
-        url: new URL(siteData.ogImage.src, baseURL).toString(),
+        url: new URL('/favicons/android-chrome-512x512.png', baseURL).toString(),
+        width: '512',
+        height: '512',
     }
     const organization: Organization = {
         '@type': 'Organization',

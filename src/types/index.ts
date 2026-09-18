@@ -1,5 +1,6 @@
 import type { LucideIcon } from 'lucide-react'
 import type * as React from 'react'
+import type { Metadata } from 'next'
 
 export type Theme = "light" | "dark" | "system";
 
@@ -44,7 +45,6 @@ export type MetadataColor = {
 }
 // site data types
 export type TSiteData = {
-    favicon: string
     name: string
     shortName: string
     publisher: string
@@ -63,11 +63,8 @@ export type TtwitterMetaData = {
     image: string;
     creator: string;
 }
-export type TMetadataIcons = {
-    icon: string
-    shortcut: string
-    apple: string
-}
+
+export type TMetadataIcons = NonNullable<Metadata['icons']>
 
 // not used yet
 export type ApplicationContextProps = {
