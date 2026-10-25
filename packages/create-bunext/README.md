@@ -6,6 +6,8 @@ A CLI tool to scaffold the A CLI tool to scaffold the **Bunext** Next.js 16 star
 
 ## Quick Start
 
+Requires Bun or Node.js 22.12+ (Node.js 23 and later are also supported).
+
 ```bash
 # Recommended (Bun)
 bun create bunext my-app

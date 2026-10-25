@@ -87,7 +87,7 @@ function replaceReadmeRepoPlaceholder(projectRoot: string, nameForPackage: strin
     writeFileSync(readmePath, content);
 }
 
-function validateProjectName(name: string): string | undefined {
+const validateProjectName = (name: string | undefined): string | undefined => {
     if (!name) return "Project name is required";
     if (name === ".") return; // Allow current directory
     if (!/^\.\/[a-zA-Z0-9-]+$/.test(name) && !/^[a-zA-Z0-9-]+$/.test(name)) {
@@ -97,7 +97,7 @@ function validateProjectName(name: string): string | undefined {
     if (existsSync(resolve(process.cwd(), dirName))) {
         return `Directory "${dirName}" already exists`;
     }
-}
+};
 
 async function promptForProjectName(): Promise<string> {
     const response = await p.text({
@@ -497,7 +497,7 @@ async function main(): Promise<void> {
             const remoteUrlResponse = await p.text({
                 message: "Enter the remote repository URL:",
                 placeholder: "https://github.com/username/repo.git",
-                validate: (value: string) => {
+                validate: (value) => {
                     if (!value) return "Remote URL is required";
                     if (
                         !value.startsWith("https://github.com/") &&

@@ -73,16 +73,19 @@ npm run dev
 
 #### Command list
 
-| Command           | Action                                        |
-| :---------------- | :-------------------------------------------- |
-| `bun run dev`     | Starts local dev server at `localhost:3000`   |
-| `bun run build`   | Build your production app to `./.next/`       |
-| `bun run start`   | Start the production server (run after build) |
-| `bun run preview` | Build and start production server locally     |
-| `bun run lint`    | Run ESLint                                    |
-| `bun run format`  | Run Prettier to format code                   |
+| Command             | Action                                        |
+| :------------------ | :-------------------------------------------- |
+| `bun run dev`       | Starts local dev server at `localhost:3000`   |
+| `bun run build`     | Build your production app to `./.next/`       |
+| `bun run start`     | Start the production server (run after build) |
+| `bun run preview`   | Build and start production server locally     |
+| `bun run lint`      | Run ESLint                                    |
+| `bun run typecheck` | Run the TypeScript 7 type checker             |
+| `bun run format`    | Run Prettier to format code                   |
 
 > Just replace `bun` with `npm` if you're using npm
+
+Type checking uses the native TypeScript 7 compiler. The `typescript` dependency aliases Microsoft's TypeScript 6 compatibility package so ESLint and Next.js can use its compiler API. This follows [Microsoft's side-by-side setup](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/#running-side-by-side-with-typescript-6.0).
 
 ## Features
 

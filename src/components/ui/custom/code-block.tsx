@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useTheme } from "next-themes";
 import { codeToHtml, type ShikiTransformer } from "shiki";
 import { cn } from "@/lib/utils";
@@ -130,30 +130,38 @@ export function CodeBlock({
 		[highlightKey, addedKey, removedKey],
 	);
 
-	const highlight = useCallback(async () => {
-		try {
-			const out = await codeToHtml(code, {
-				lang: language,
-				themes: {
-					light: CODE_BLOCK_THEME.shiki.light,
-					dark: CODE_BLOCK_THEME.shiki.dark,
-				},
-				defaultColor: colorScheme,
-				structure: "classic",
-				transformers: transformer ? [transformer] : [],
-			});
-			setHtml(out);
-		} catch {
-			setHtml(
-				buildFallbackHtml(code, {
-					highlightLines,
-					addedLines,
-					removedLines,
-				}),
-			);
-		} finally {
-			setLoaded(true);
-		}
+	useEffect(() => {
+		let cancelled = false;
+		codeToHtml(code, {
+			lang: language,
+			themes: {
+				light: CODE_BLOCK_THEME.shiki.light,
+				dark: CODE_BLOCK_THEME.shiki.dark,
+			},
+			defaultColor: colorScheme,
+			structure: "classic",
+			transformers: transformer ? [transformer] : [],
+		}).then(
+			(out) => {
+				if (cancelled) return;
+				setHtml(out);
+				setLoaded(true);
+			},
+			() => {
+				if (cancelled) return;
+				setHtml(
+					buildFallbackHtml(code, {
+						highlightLines,
+						addedLines,
+						removedLines,
+					}),
+				);
+				setLoaded(true);
+			},
+		);
+		return () => {
+			cancelled = true;
+		};
 	}, [
 		code,
 		language,
@@ -163,10 +171,6 @@ export function CodeBlock({
 		addedLines,
 		removedLines,
 	]);
-
-	useEffect(() => {
-		highlight();
-	}, [highlight]);
 
 	const initialFallbackHtml = useMemo(
 		() =>

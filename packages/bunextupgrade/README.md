@@ -4,6 +4,8 @@ CLI to upgrade an existing [Bunext](https://github.com/ardzero/bunext) project t
 
 ## Install
 
+Requires Bun or Node.js 22.12+ (Node.js 23 and later are also supported).
+
 ```bash
 bunx bunextupgrade
 ```

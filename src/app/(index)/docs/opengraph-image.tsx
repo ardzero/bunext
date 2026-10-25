@@ -1,6 +1,6 @@
 import { GenerateImage } from "@/components/utils/ogImageGenerator";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 
 export const alt = "Bunext";
 export const contentType = "image/png";
