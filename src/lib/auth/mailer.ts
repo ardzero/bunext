@@ -21,7 +21,8 @@ const createResendMailer = (apiKey: string, from: string): Mailer => {
 	return {
 		sendMail: async ({ to, subject, html }) => {
 			const { error } = await resend.emails.send({ from, to, subject, html });
-			if (error) throw new Error(`Resend failed to send mail: ${error.message}`);
+			if (error)
+				throw new Error(`Resend failed to send mail: ${error.message}`);
 		},
 	};
 };
@@ -44,16 +45,23 @@ const consoleMailer: Mailer = {
 	},
 };
 
+// instrumentation and route bundles each evaluate this module; warn only once
+const globalForMailer = globalThis as unknown as { warnedNoMailer?: boolean };
+
+const warnNoMailerOnce = () => {
+	if (globalForMailer.warnedNoMailer) return;
+	globalForMailer.warnedNoMailer = true;
+	console.warn(
+		"[auth] No mailer configured (RESEND_API_KEY and MAIL_FROM). Emails are printed to the console, email verification is not required and magic links are disabled.",
+	);
+};
+
 const createMailer = (): Mailer => {
 	if (env.RESEND_API_KEY && env.MAIL_FROM) {
 		return createResendMailer(env.RESEND_API_KEY, env.MAIL_FROM);
 	}
 
-	if (env.NODE_ENV === "production" && !isBuildPhase) {
-		console.warn(
-			"[auth] No mailer configured (RESEND_API_KEY and MAIL_FROM). Emails are printed to the console, email verification is not required and magic links are disabled.",
-		);
-	}
+	if (env.NODE_ENV === "production" && !isBuildPhase) warnNoMailerOnce();
 	return consoleMailer;
 };
 

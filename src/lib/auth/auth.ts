@@ -2,12 +2,26 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 import { admin, magicLink } from "better-auth/plugins";
+import { createAccessControl } from "better-auth/plugins/access";
+import {
+	adminAc,
+	defaultStatements,
+	userAc,
+} from "better-auth/plugins/admin/access";
 import { db } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
-import { baseURL, env } from "@/lib/env";
+import { baseURL, env, isBuildPhase } from "@/lib/env";
 import { hasRealMailer, renderActionEmail, sendMail } from "./mailer";
 import { enabledProviderConfigs } from "./providers";
-import { ADMIN_ROLES, DEFAULT_ROLE } from "./roles";
+import { ADMIN_ROLES, DEFAULT_ROLE, type Role } from "./roles";
+
+// Admin plugin permissions per role. Adding a role to ROLES in roles.ts makes
+// this a type error until it gets permissions here (setRole rejects unknown roles).
+const accessControl = createAccessControl(defaultStatements);
+const rolePermissions = {
+	user: userAc,
+	admin: adminAc,
+} satisfies Record<Role, unknown>;
 
 // Magic links need a mailer that reaches the user. In development the console
 // mailer prints the link; in production a real mailer is required.
@@ -42,7 +56,13 @@ const magicLinkPlugins = magicLinkEnabled
 
 export const auth = betterAuth({
 	baseURL,
-	secret: env.BETTER_AUTH_SECRET,
+	// `next build` evaluates this module without runtime secrets; env.ts
+	// enforces a real secret everywhere else
+	secret:
+		env.BETTER_AUTH_SECRET ??
+		(isBuildPhase
+			? "build-phase-placeholder-secret-not-used-at-runtime"
+			: undefined),
 	trustedOrigins: baseURL ? [baseURL] : undefined,
 	database: drizzleAdapter(db, { provider: "pg", schema }),
 	emailAndPassword: {
@@ -97,7 +117,12 @@ export const auth = betterAuth({
 		},
 	},
 	plugins: [
-		admin({ defaultRole: DEFAULT_ROLE, adminRoles: ADMIN_ROLES }),
+		admin({
+			ac: accessControl,
+			roles: rolePermissions,
+			defaultRole: DEFAULT_ROLE,
+			adminRoles: ADMIN_ROLES,
+		}),
 		...magicLinkPlugins,
 		// must stay last: lets server actions set auth cookies
 		nextCookies(),

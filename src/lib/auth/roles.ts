@@ -12,7 +12,10 @@ export const isRole = (value: unknown): value is Role =>
 
 // the admin plugin stores multiple roles as a comma separated string
 export const parseRoles = (value: string | null | undefined): Role[] =>
-	(value ?? DEFAULT_ROLE).split(",").map((role) => role.trim()).filter(isRole);
+	(value ?? DEFAULT_ROLE)
+		.split(",")
+		.map((role) => role.trim())
+		.filter(isRole);
 
 export const hasRole = (
 	value: string | null | undefined,

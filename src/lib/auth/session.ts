@@ -3,10 +3,8 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 import { auth } from "./auth";
+import { PATHNAME_HEADER, signInPath } from "./paths";
 import { hasRole, type Role } from "./roles";
-
-// set by src/proxy.ts on every page request so server code knows the current path
-export const PATHNAME_HEADER = "x-bunext-pathname";
 
 // One session read per request. Cookie cache is off, so this always hits the database.
 export const getSession = cache(async () =>
@@ -15,11 +13,6 @@ export const getSession = cache(async () =>
 
 const getCurrentPath = async () => (await headers()).get(PATHNAME_HEADER);
 
-export const signInPath = (returnTo?: string | null) =>
-	returnTo
-		? `/sign-in?returnTo=${encodeURIComponent(returnTo)}`
-		: "/sign-in";
-
 // Use in every protected server component, action and route handler.
 // `returnTo` defaults to the current page.
 export const requireSession = async (returnTo?: string) => {
@@ -27,6 +20,12 @@ export const requireSession = async (returnTo?: string) => {
 	if (session) return session;
 
 	redirect(signInPath(returnTo ?? (await getCurrentPath())));
+};
+
+// For guest-only pages (sign-in, sign-up, forgot-password).
+export const redirectIfSignedIn = async (redirectTo: string) => {
+	const session = await getSession();
+	if (session) redirect(redirectTo);
 };
 
 // Redirects to /dashboard when the signed-in user has none of the given roles.
