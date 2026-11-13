@@ -29,10 +29,11 @@ bun create bunext
 The CLI will guide you through:
 
 1. **Project name & directory** (with validation and safety checks)
-2. **Install dependencies?** (yes/no)
-3. **Initialize git repository?** (yes/no)
-4. **Connect to a remote repository?** (GitHub/GitLab, optional)
-5. **Open in editor?** (Cursor / VS Code / Skip)
+2. **Project setup** (Default / Better Auth + Drizzle)
+3. **Install dependencies?** (yes/no)
+4. **Initialize git repository?** (yes/no)
+5. **Connect to a remote repository?** (GitHub/GitLab, optional)
+6. **Open in editor?** (Cursor / VS Code / Skip)
 
 You can also target the **current directory**:
 
@@ -52,6 +53,9 @@ bun create bunext my-app -y
 bun create bunext my-app --cursor
 bun create bunext my-app --vscode
 
+# Record Better Auth + Drizzle selection
+bun create bunext my-app --better-auth-drizzle
+
 # Skip steps
 bun create bunext my-app --no-install
 bun create bunext my-app --no-git
@@ -70,10 +74,13 @@ bun create bunext my-app -y --cursor
 | `-y`, `--yes`                | Skip all prompts and use defaults (install deps, init git) |
 | `--install` / `--no-install` | Install or skip installing dependencies                    |
 | `--git` / `--no-git`         | Initialize or skip git repository                          |
+| `--better-auth-drizzle`      | Record Better Auth + Drizzle selection only                 |
 | `--cursor`                   | Open project in Cursor after creation                      |
 | `--vscode`                   | Open project in VS Code after creation                     |
 | `-h`, `--help`               | Show help message with examples                            |
 | `-v`, `--version`            | Show CLI version                                           |
+
+Selecting **Better Auth + Drizzle** saves `{"betterAuthDrizzle": true}` in the generated project’s `bunext.config.json`. It does not install or configure Better Auth or Drizzle. With `-y`, the default setup remains selected unless `--better-auth-drizzle` is passed.
 
 > For the full help output:
 
@@ -218,3 +225,9 @@ IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
 DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
+
+## Template branch maintenance
+
+CLI releases are published from `main`. The `bauth-drizzle` branch is reserved for the auth-enabled template.
+
+The **Sync auth template** workflow merges `main` into `bauth-drizzle` on every push, after the npm publishing workflow finishes, and daily as a fallback. It preserves auth branch commits and includes template changes and dependency updates. Conflicts open a single PR from `main` into `bauth-drizzle` for manual resolution. Enable **Allow GitHub Actions to create and approve pull requests** in repository Actions settings for this fallback. The workflow can also be run manually.

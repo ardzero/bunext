@@ -1,0 +1,67 @@
+name: Sync auth template
+
+on:
+  push:
+    branches: [main]
+  workflow_run:
+    workflows: [Publish npm packages]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: "23 4 * * *"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: sync-bauth-drizzle
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Merge main into auth template
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const base = "bauth-drizzle";
+            const head = "main";
+
+            try {
+              await github.rest.repos.merge({
+                owner,
+                repo,
+                base,
+                head,
+                commit_message: "chore: sync main into bauth-drizzle",
+              });
+              core.info("Auth template is up to date with main.");
+            } catch (error) {
+              if (error.status !== 409) throw error;
+
+              const { data: existing } = await github.rest.pulls.list({
+                owner,
+                repo,
+                base,
+                head: `${owner}:${head}`,
+                state: "open",
+              });
+              if (existing.length > 0) {
+                core.warning(`Resolve sync conflicts in ${existing[0].html_url}`);
+                return;
+              }
+
+              const { data: pull } = await github.rest.pulls.create({
+                owner,
+                repo,
+                base,
+                head,
+                title: "chore: resolve main sync into bauth-drizzle",
+                body: "Automatic synchronization encountered merge conflicts. Resolve the conflicts and merge this PR into bauth-drizzle to bring in the latest template and dependency updates from main.",
+              });
+              core.warning(`Resolve sync conflicts in ${pull.html_url}`);
+            }

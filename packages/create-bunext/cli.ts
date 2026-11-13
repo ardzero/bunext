@@ -39,6 +39,7 @@ interface CliArguments {
     y: boolean;
     git?: boolean;
     install?: boolean;
+    "better-auth-drizzle"?: boolean;
     cursor?: boolean;
     vscode?: boolean;
     h?: boolean;
@@ -135,6 +136,7 @@ function showHelp(): void {
     console.log(`  ${color.cyan("--no-git")}               Skip git initialization`);
     console.log(`  ${color.cyan("--install")}              Install dependencies`);
     console.log(`  ${color.cyan("--no-install")}           Skip dependency installation`);
+    console.log(`  ${color.cyan("--better-auth-drizzle")}  Record Better Auth + Drizzle selection (configuration coming later)`);
     console.log(`  ${color.cyan("--cursor")}               Open project in Cursor after creation`);
     console.log(`  ${color.cyan("--vscode")}               Open project in VS Code after creation`);
     console.log(`  ${color.cyan("-h, --help")}             Show this help message`);
@@ -160,6 +162,11 @@ const argv = yargs(hideBin(process.argv))
     .option("install", {
         type: "boolean",
         description: "Install dependencies",
+        default: undefined,
+    })
+    .option("better-auth-drizzle", {
+        type: "boolean",
+        description: "Record the Better Auth + Drizzle selection without configuring it",
         default: undefined,
     })
     .option("cursor", {
@@ -244,6 +251,30 @@ async function main(): Promise<void> {
             p.cancel(validationError);
             process.exit(1);
         }
+    }
+
+    let betterAuthDrizzle = argv["better-auth-drizzle"] ?? false;
+
+    if (!argv.y && argv["better-auth-drizzle"] === undefined) {
+        const setupResponse = await p.select({
+            message: "Choose your project setup",
+            options: [
+                { value: false, label: "Default" },
+                {
+                    value: true,
+                    label: "Better Auth + Drizzle",
+                    hint: "Selection only; auth and database configuration coming later",
+                },
+            ],
+            initialValue: false,
+        });
+
+        if (p.isCancel(setupResponse)) {
+            p.cancel("Operation cancelled");
+            process.exit(0);
+        }
+
+        betterAuthDrizzle = setupResponse;
     }
 
     // Clone template
@@ -355,6 +386,14 @@ async function main(): Promise<void> {
         p.log.warn("Could not remove some directories");
         p.log.info("You can manually delete them later.");
         // Don't exit - this is not critical
+    }
+
+    if (betterAuthDrizzle) {
+        writeFileSync(
+            resolve(projectRoot, "bunext.config.json"),
+            JSON.stringify({ betterAuthDrizzle: true }, null, 2) + "\n"
+        );
+        p.log.info("Better Auth + Drizzle selection saved. Auth and database configuration coming later.");
     }
 
     // Detect package manager
