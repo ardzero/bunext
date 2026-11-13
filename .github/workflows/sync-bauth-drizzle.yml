@@ -30,6 +30,7 @@ jobs:
             const { owner, repo } = context.repo;
             const base = "bauth-drizzle";
             const head = "main";
+            const syncBranch = "sync/main-into-bauth-drizzle";
 
             try {
               await github.rest.repos.merge({
@@ -47,7 +48,7 @@ jobs:
                 owner,
                 repo,
                 base,
-                head: `${owner}:${head}`,
+                head: `${owner}:${syncBranch}`,
                 state: "open",
               });
               if (existing.length > 0) {
@@ -55,13 +56,44 @@ jobs:
                 return;
               }
 
+              const { data: mainRef } = await github.rest.git.getRef({
+                owner,
+                repo,
+                ref: `heads/${head}`,
+              });
+
+              // Only refresh the reserved sync branch when no PR is open.
+              // Preserve any in-progress conflict resolutions on an open PR.
+              try {
+                await github.rest.git.getRef({
+                  owner,
+                  repo,
+                  ref: `heads/${syncBranch}`,
+                });
+                await github.rest.git.updateRef({
+                  owner,
+                  repo,
+                  ref: `heads/${syncBranch}`,
+                  sha: mainRef.object.sha,
+                  force: true,
+                });
+              } catch (refError) {
+                if (refError.status !== 404) throw refError;
+                await github.rest.git.createRef({
+                  owner,
+                  repo,
+                  ref: `refs/heads/${syncBranch}`,
+                  sha: mainRef.object.sha,
+                });
+              }
+
               const { data: pull } = await github.rest.pulls.create({
                 owner,
                 repo,
                 base,
-                head,
+                head: syncBranch,
                 title: "chore: resolve main sync into bauth-drizzle",
-                body: "Automatic synchronization encountered merge conflicts. Resolve the conflicts and merge this PR into bauth-drizzle to bring in the latest template and dependency updates from main.",
+                body: "Automatic synchronization encountered merge conflicts. Resolve the conflicts on this dedicated sync branch and merge this PR into bauth-drizzle. Keep main unchanged. Further main updates will be picked up by the next sync after this PR is merged.",
               });
               core.warning(`Resolve sync conflicts in ${pull.html_url}`);
             }
