@@ -225,9 +225,3 @@ IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
 DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
-
-## Template branch maintenance
-
-CLI releases are published from `main`. The `bauth-drizzle` branch is reserved for the auth-enabled template.
-
-The **Sync auth template** workflow merges `main` into `bauth-drizzle` on every push, after the npm publishing workflow finishes, and daily as a fallback. It preserves auth branch commits and includes template changes and dependency updates. Conflicts open a single PR from `main` into `bauth-drizzle` for manual resolution. Enable **Allow GitHub Actions to create and approve pull requests** in repository Actions settings for this fallback. The workflow can also be run manually.
