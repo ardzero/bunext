@@ -28,7 +28,7 @@
 		"db:migrate": "drizzle-kit migrate",
 		"db:studio": "drizzle-kit studio",
 		"auth:generate": "bun --conditions=react-server node_modules/.bin/auth generate --config src/lib/auth/auth.ts --output src/lib/db/schema/auth.ts --yes",
-		"setup": "bun --conditions=react-server scripts/setup.ts",
+		"setup": "bun scripts/setup.ts",
 		"seed:admin": "bun --conditions=react-server scripts/seed-admin.ts",
 		"generate:icons": "bun scripts/generate-icons.ts"
 	},
