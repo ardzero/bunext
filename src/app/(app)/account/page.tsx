@@ -6,6 +6,7 @@ import {
 	SetPasswordForm,
 } from "@/components/auth/change-password-form";
 import { ConnectedAccounts } from "@/components/auth/connected-accounts";
+import { DeleteAccount } from "@/components/auth/delete-account";
 import { ProfileForm } from "@/components/auth/profile-form";
 import { ProfilePicture } from "@/components/auth/profile-picture";
 import { auth } from "@/lib/auth/auth";
@@ -55,17 +56,14 @@ const AccountPage = async ({
 					providers={connectedProviders}
 					avatars={avatars}
 				/>
-				{hasPassword ? (
-					<ChangePasswordForm />
-				) : (
-					<SetPasswordForm />
-				)}
+				{hasPassword ? <ChangePasswordForm /> : <SetPasswordForm />}
 				<ConnectedAccounts
 					providers={enabledProviders}
 					accounts={accounts}
 					error={getParam(params, "error")}
 				/>
 				<ActiveSessions sessions={sessions} currentSessionId={session.id} />
+				<DeleteAccount hasPassword={hasPassword} />
 			</div>
 		</>
 	);

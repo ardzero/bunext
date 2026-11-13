@@ -8,6 +8,7 @@ import { defaultStatements, userAc } from "better-auth/plugins/admin/access";
 import { db } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
 import { baseURL, env, isBuildPhase, trustedOrigins } from "@/lib/env";
+import { requireDeletionPassword } from "./delete-account";
 import {
 	consumeEmailRateLimit,
 	emailRateLimitKey,
@@ -75,6 +76,7 @@ const limitMailPerAddress = async (path: string, email: unknown) => {
 };
 
 const beforeAuthRequest = createAuthMiddleware(async (ctx) => {
+	await requireDeletionPassword(ctx);
 	assertPasswordResetEnabled(ctx.path);
 	await limitMailPerAddress(ctx.path, ctx.body?.email);
 });
@@ -159,6 +161,9 @@ export const auth = betterAuth({
 		sendOnSignIn: hasRealMailer,
 		autoSignInAfterVerification: true,
 		sendVerificationEmail: canSendMail ? sendVerificationEmail : undefined,
+	},
+	user: {
+		deleteUser: { enabled: true },
 	},
 	socialProviders,
 	account: {
