@@ -1,3 +1,4 @@
+import { NuqsAdapter } from "nuqs/adapters/next/app";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -8,15 +9,13 @@ export function RootProvider({
 	children: React.ReactNode;
 }>) {
 	return (
-		<>
-			{/* <NuqsAdapter> */}
+		<NuqsAdapter>
 			<ThemeProvider disableTransitionOnChange>
 				<TooltipProvider>
 					{children}
 					<Toaster />
 				</TooltipProvider>
 			</ThemeProvider>
-			{/* </NuqsAdapter> */}
-		</>
+		</NuqsAdapter>
 	);
 }
