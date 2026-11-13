@@ -75,6 +75,11 @@ export const useAuthForm = <TSchema extends z.ZodType<FormValues>>({
 		if (form) focusFirstInvalid(form, [name]);
 	};
 
+	const clearErrors = () => {
+		setFieldErrors({});
+		setFormError(null);
+	};
+
 	const setAuthError = (error: string | AuthErrorLike | null | undefined) =>
 		setFormError(getAuthErrorMessage(error));
 
@@ -101,6 +106,7 @@ export const useAuthForm = <TSchema extends z.ZodType<FormValues>>({
 		setFieldError,
 		setFormError,
 		setAuthError,
+		clearErrors,
 		getFieldProps,
 		getErrorProps,
 	};

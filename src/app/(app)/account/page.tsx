@@ -3,12 +3,12 @@ import { headers } from "next/headers";
 import { ActiveSessions } from "@/components/auth/active-sessions";
 import {
 	ChangePasswordForm,
-	PasswordNotSetNotice,
+	SetPasswordForm,
 } from "@/components/auth/change-password-form";
 import { ConnectedAccounts } from "@/components/auth/connected-accounts";
 import { ProfileForm } from "@/components/auth/profile-form";
 import { ProfilePicture } from "@/components/auth/profile-picture";
-import { auth, passwordResetEnabled } from "@/lib/auth/auth";
+import { auth } from "@/lib/auth/auth";
 import { listProviderAvatars } from "@/lib/auth/provider-avatars";
 import { enabledProviders } from "@/lib/auth/providers";
 import { getParam, type SearchParams } from "@/lib/auth/search-params";
@@ -58,7 +58,7 @@ const AccountPage = async ({
 				{hasPassword ? (
 					<ChangePasswordForm />
 				) : (
-					<PasswordNotSetNotice canResetPassword={passwordResetEnabled} />
+					<SetPasswordForm />
 				)}
 				<ConnectedAccounts
 					providers={enabledProviders}

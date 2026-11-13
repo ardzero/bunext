@@ -1,5 +1,6 @@
 import { CircleAlertIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "./schemas";
 
 // Better Auth error codes and OAuth callback `?error=` values, in plain words.
 const AUTH_ERROR_MESSAGES: Record<string, string> = {
@@ -12,7 +13,9 @@ const AUTH_ERROR_MESSAGES: Record<string, string> = {
 	EMAIL_NOT_VERIFIED: "Verify your email address before signing in.",
 	PASSWORD_TOO_SHORT: "Password is too short.",
 	PASSWORD_TOO_LONG: "Password is too long.",
+	INVALID_PASSWORD_FORMAT: `Use ${PASSWORD_MIN_LENGTH} to ${PASSWORD_MAX_LENGTH} characters.`,
 	CREDENTIAL_ACCOUNT_NOT_FOUND: "This account has no password set.",
+	PASSWORD_ALREADY_SET: "This account already has a password.",
 	// tokens and links
 	INVALID_TOKEN: "This link is invalid, expired or has already been used.",
 	TOKEN_EXPIRED: "This link has expired.",
@@ -21,6 +24,7 @@ const AUTH_ERROR_MESSAGES: Record<string, string> = {
 		"You can't remove your only sign-in method. Add another one first.",
 	ACCOUNT_NOT_FOUND: "This account is no longer connected.",
 	SESSION_EXPIRED: "For your security, sign in again to make this change.",
+	SESSION_NOT_FRESH: "For your security, sign in again to make this change.",
 	FIELD_NOT_ALLOWED: "That change isn't allowed.",
 	// rate limiting
 	TOO_MANY_REQUESTS: "Too many attempts. Wait a moment and try again.",
