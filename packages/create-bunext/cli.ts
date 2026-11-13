@@ -1,10 +1,11 @@
 #!/usr/bin/env node
+import { randomBytes } from "node:crypto";
 import { execa } from "execa";
 import * as p from "@clack/prompts";
 import color from "picocolors";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
-import { existsSync, readFileSync, rmSync, writeFileSync } from "fs";
+import { copyFileSync, existsSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { resolve, dirname, join, basename } from "path";
 import { fileURLToPath } from "url";
 
@@ -138,7 +139,7 @@ function showHelp(): void {
     console.log(`  ${color.cyan("--no-git")}               Skip git initialization`);
     console.log(`  ${color.cyan("--install")}              Install dependencies`);
     console.log(`  ${color.cyan("--no-install")}           Skip dependency installation`);
-    console.log(`  ${color.cyan("--better-auth-drizzle")}  Record Better Auth + Drizzle selection (configuration coming later)`);
+    console.log(`  ${color.cyan("--better-auth-drizzle")}  Create with Better Auth + Drizzle`);
     console.log(`  ${color.cyan("--cursor")}               Open project in Cursor after creation`);
     console.log(`  ${color.cyan("--vscode")}               Open project in VS Code after creation`);
     console.log(`  ${color.cyan("-h, --help")}             Show this help message`);
@@ -168,7 +169,7 @@ const argv = yargs(hideBin(process.argv))
     })
     .option("better-auth-drizzle", {
         type: "boolean",
-        description: "Record the Better Auth + Drizzle selection without configuring it",
+        description: "Create with Better Auth + Drizzle",
         default: undefined,
     })
     .option("cursor", {
@@ -265,7 +266,7 @@ async function main(): Promise<void> {
                 {
                     value: true,
                     label: "Better Auth + Drizzle",
-                    hint: "Selection only; auth and database configuration coming later",
+                    hint: "Authentication with Postgres",
                 },
             ],
             initialValue: false,
@@ -284,7 +285,8 @@ async function main(): Promise<void> {
     s.start("Cloning template");
     const tempDir = useCurrentDir ? ".bunext-temp" : projectName;
     try {
-        await execa("git", ["clone", "--depth", "1", REPO_URL, tempDir]);
+        const branchArgs = betterAuthDrizzle ? ["--branch", "bauth-drizzle"] : [];
+        await execa("git", ["clone", "--depth", "1", ...branchArgs, REPO_URL, tempDir]);
         s.stop("Template cloned");
     } catch (error: any) {
         s.stop("Failed to clone template");
@@ -391,11 +393,17 @@ async function main(): Promise<void> {
     }
 
     if (betterAuthDrizzle) {
-        writeFileSync(
-            resolve(projectRoot, "bunext.config.json"),
-            JSON.stringify({ betterAuthDrizzle: true }, null, 2) + "\n"
-        );
-        p.log.info("Better Auth + Drizzle selection saved. Auth and database configuration coming later.");
+        const envLocalPath = resolve(projectRoot, ".env.local");
+        if (!existsSync(envLocalPath)) {
+            copyFileSync(resolve(projectRoot, ".env.example"), envLocalPath);
+            const envContent = readFileSync(envLocalPath, "utf-8");
+            writeFileSync(
+                envLocalPath,
+                envContent.replace(/^BETTER_AUTH_SECRET=.*$/m, () =>
+                    `BETTER_AUTH_SECRET=${randomBytes(32).toString("base64")}`
+                )
+            );
+        }
     }
 
     // Detect package manager
@@ -675,7 +683,14 @@ async function main(): Promise<void> {
     if (!shouldInstall) {
         nextSteps += `${packageManager} install\n`;
     }
-    nextSteps += `${packageManager} run dev`;
+    if (betterAuthDrizzle) {
+        nextSteps += "Add DATABASE_URL to .env.local\n";
+        nextSteps += "bun run setup\n";
+        nextSteps += "bun run dev\n";
+        nextSteps += 'See README.md "Authentication" for Google/Discord provider setup.';
+    } else {
+        nextSteps += `${packageManager} run dev`;
+    }
 
     p.note(nextSteps, "Next steps");
 
