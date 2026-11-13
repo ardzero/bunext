@@ -12,6 +12,7 @@ import { db } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
 import { baseURL, env, isBuildPhase } from "@/lib/env";
 import {
+	captureMissingProviderAvatarAfterUpdate,
 	captureProviderAvatarAfterLink,
 	stripUnprovenAccessBeforeLink,
 } from "./link-hooks";
@@ -124,6 +125,7 @@ export const auth = betterAuth({
 				before: stripUnprovenAccessBeforeLink,
 				after: captureProviderAvatarAfterLink,
 			},
+			update: { after: captureMissingProviderAvatarAfterUpdate },
 		},
 	},
 	rateLimit: {

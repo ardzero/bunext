@@ -132,4 +132,36 @@ describe.skipIf(!hasDatabase)("provider avatars", () => {
 
 		expect(await listProviderAvatars(user.id)).toEqual([]);
 	});
+
+	test("a sign-in on an already-linked provider fills a missing picture once", async () => {
+		const {
+			captureMissingProviderAvatarAfterUpdate,
+			saveProviderAvatar,
+			listProviderAvatars,
+		} = await loadDeps();
+		const { context, user } = await createUser(null);
+		const first = "https://img.test/first.png";
+
+		await captureMissingProviderAvatarAfterUpdate(
+			newAccount(user.id),
+			hookContext(context, async () => ({ user: { image: first } })),
+		);
+		expect(await listProviderAvatars(user.id)).toEqual([
+			{ providerId: "google", imageUrl: first },
+		]);
+
+		// a saved picture is left for the manual refresh
+		await saveProviderAvatar({
+			userId: user.id,
+			providerId: "google",
+			imageUrl: "https://img.test/chosen.png",
+		});
+		await captureMissingProviderAvatarAfterUpdate(
+			newAccount(user.id),
+			hookContext(context, async () => ({ user: { image: first } })),
+		);
+		expect(await listProviderAvatars(user.id)).toEqual([
+			{ providerId: "google", imageUrl: "https://img.test/chosen.png" },
+		]);
+	});
 });

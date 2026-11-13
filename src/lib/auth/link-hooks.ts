@@ -1,7 +1,7 @@
 import type { GenericEndpointContext } from "better-auth";
 import { getSessionFromCtx } from "better-auth/api";
 import { revokeUnprovenAccountAccess } from "better-auth/db";
-import { saveProviderAvatar } from "./provider-avatars";
+import { findProviderAvatar, saveProviderAvatar } from "./provider-avatars";
 
 type NewAccount = { providerId: string; userId: string };
 
@@ -81,4 +81,20 @@ export const captureProviderAvatarAfterLink = async (
 	} catch (error) {
 		ctx.context.logger.error("Could not store the provider avatar", error);
 	}
+};
+
+// Runs after a provider account row is updated, which is what a sign-in with an
+// already-linked provider does. Accounts connected before pictures were stored
+// have no saved one, so the first sign-in fills it in. Later pictures are
+// refreshed on demand, not on every sign-in.
+export const captureMissingProviderAvatarAfterUpdate = async (
+	account: CreatedAccount | null,
+	ctx: GenericEndpointContext | null,
+) => {
+	if (!account?.userId || account.providerId === "credential") return;
+
+	const saved = await findProviderAvatar(account.userId, account.providerId);
+	if (saved) return;
+
+	await captureProviderAvatarAfterLink(account, ctx);
 };
