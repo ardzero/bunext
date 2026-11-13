@@ -118,8 +118,8 @@ const SignUpForm = ({ redirectTo, className, ...props }: SignUpFormProps) => {
 				return;
 			}
 
-			router.push(redirectTo);
-			router.refresh();
+			// dynamic pages are fetched fresh; replace keeps the form out of history
+			router.replace(redirectTo);
 		},
 	});
 

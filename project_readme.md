@@ -53,6 +53,8 @@ Set them in `.env.local` locally and in your host's settings in production. `.en
 | `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET` | no            | Enables Discord sign-in                                                                                                |
 | `RESEND_API_KEY`, `MAIL_FROM`                | no            | Sends real email through [Resend](https://resend.com). Turns on required email verification and production magic links |
 
+When a user whose email isn't verified yet signs in with a magic link, Better Auth removes the sign-in methods they added before proving the address (password, linked providers) and signs out their other sessions. This prevents account pre-hijacking. They can set a password again with "Forgot password?".
+
 Without a mailer, production still works: sign-up doesn't require verification, magic links are hidden, and the server logs a warning at startup.
 
 ## Authentication

@@ -11,6 +11,8 @@ const nextConfig: NextConfig = {
       { source: "/apple-touch-icon.png", destination: "/favicons/apple-touch-icon.png" },
     ];
   },
+  // keep the dev indicator clear of the header's account menu (top right)
+  devIndicators: { position: "bottom-right" },
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'v0.dev', pathname: '/placeholder.svg' },

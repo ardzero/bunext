@@ -39,7 +39,7 @@ const AppLayout = async ({ children }: { children: React.ReactNode }) => {
 					<UserButton />
 				</div>
 			</header>
-			<div className="container mx-auto flex w-full flex-1 flex-col gap-6 px-4 py-8">
+			<div className="container mx-auto flex w-full flex-1 flex-col gap-6 px-4 pt-8 pb-20">
 				{children}
 			</div>
 		</div>

@@ -12,8 +12,10 @@ export type Mailer = {
 	sendMail: (message: MailMessage) => Promise<void>;
 };
 
-// a real mailer turns on required email verification and production magic links
-export const hasRealMailer = Boolean(env.RESEND_API_KEY && env.MAIL_FROM);
+// A real mailer turns on required email verification and production magic links.
+// Tests always use the console mailer so they never send real email.
+export const hasRealMailer =
+	Boolean(env.RESEND_API_KEY && env.MAIL_FROM) && env.NODE_ENV !== "test";
 
 const createResendMailer = (apiKey: string, from: string): Mailer => {
 	const resend = new Resend(apiKey);
@@ -57,7 +59,7 @@ const warnNoMailerOnce = () => {
 };
 
 const createMailer = (): Mailer => {
-	if (env.RESEND_API_KEY && env.MAIL_FROM) {
+	if (hasRealMailer && env.RESEND_API_KEY && env.MAIL_FROM) {
 		return createResendMailer(env.RESEND_API_KEY, env.MAIL_FROM);
 	}
 

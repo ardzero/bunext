@@ -288,6 +288,8 @@ Corrected assumptions:
 - `forbidden()` still requires `experimental.authInterrupts` in Next.js 16.4, so `requireRole()` redirects to `/dashboard`.
 - `requireRole()` lives in `session.ts` next to `requireSession()`. `roles.ts` keeps the role list, `Role`, the default role and helpers. Putting `requireRole` in `roles.ts` would create an import cycle (`auth.ts` → `roles.ts` → `session.ts` → `auth.ts`) that crashes when a page imports `roles.ts` first. It also keeps `roles.ts` client-safe.
 - Implicit OAuth linking requires a verified provider email by default, and also `requireLocalEmailVerified` (default `true`). Without a real mailer, local users stay unverified, so signing in with Google using the same email is refused with `account_not_linked`. Linking from `/account` still works.
+- Magic link on an **unverified** user runs Better Auth's `revokeUnprovenAccountAccess`: it deletes that user's existing accounts (including the password) and sessions, then marks the email verified. This is deliberate protection against account pre-hijacking. Without a real mailer, password sign-ups stay unverified, so in development a password sign-up followed by a magic link removes the password. The account page then shows the "no password" note, and "Forgot password?" sets a new one. Verified users are not affected.
+- Tests never send real email: with `NODE_ENV=test` the console mailer is always used.
 - Rate limiting is enabled only in production by default (`rateLimit.enabled` defaults to `isProduction`).
 - Better Auth reads `BETTER_AUTH_SECRET` (or `AUTH_SECRET`) and `BETTER_AUTH_URL`. The names in section 6 are correct.
 

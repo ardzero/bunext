@@ -1,7 +1,6 @@
 "use client";
 
 import { useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { Slot } from "radix-ui";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -23,7 +22,6 @@ const SignOutButton = ({
 	onClick,
 	...props
 }: SignOutButtonProps) => {
-	const router = useRouter();
 	const [isPending, startTransition] = useTransition();
 	const Comp = asChild ? Slot.Root : Button;
 
@@ -37,8 +35,8 @@ const SignOutButton = ({
 				toast.error(getAuthErrorMessage(error));
 				return;
 			}
-			router.push(redirectTo);
-			router.refresh();
+			// full navigation drops every piece of client state from the session
+			window.location.assign(redirectTo);
 		});
 	};
 
