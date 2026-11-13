@@ -35,9 +35,16 @@ const signInSchema = z.object({
 
 type SignInFormProps = Omit<React.ComponentProps<"form">, "onSubmit"> & {
 	redirectTo: string;
+	// false when password reset is off (production without a mailer)
+	canResetPassword?: boolean;
 };
 
-const SignInForm = ({ redirectTo, className, ...props }: SignInFormProps) => {
+const SignInForm = ({
+	redirectTo,
+	canResetPassword = true,
+	className,
+	...props
+}: SignInFormProps) => {
 	const router = useRouter();
 	const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
 
@@ -119,12 +126,14 @@ const SignInForm = ({ redirectTo, className, ...props }: SignInFormProps) => {
 				<Field data-invalid={Boolean(form.fieldErrors.password) || undefined}>
 					<div className="flex items-center justify-between gap-2">
 						<FieldLabel htmlFor={form.fieldId("password")}>Password</FieldLabel>
-						<Link
-							href={FORGOT_PASSWORD_PATH}
-							className="rounded-sm text-sm text-muted-foreground underline-offset-4 outline-none hover:text-foreground hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
-						>
-							Forgot password?
-						</Link>
+						{canResetPassword && (
+							<Link
+								href={FORGOT_PASSWORD_PATH}
+								className="rounded-sm text-sm text-muted-foreground underline-offset-4 outline-none hover:text-foreground hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
+							>
+								Forgot password?
+							</Link>
+						)}
 					</div>
 					<PasswordInput
 						autoComplete="current-password"

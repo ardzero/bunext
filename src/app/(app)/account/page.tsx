@@ -8,7 +8,7 @@ import {
 import { ConnectedAccounts } from "@/components/auth/connected-accounts";
 import { ProfileForm } from "@/components/auth/profile-form";
 import { ProfilePicture } from "@/components/auth/profile-picture";
-import { auth } from "@/lib/auth/auth";
+import { auth, passwordResetEnabled } from "@/lib/auth/auth";
 import { listProviderAvatars } from "@/lib/auth/provider-avatars";
 import { enabledProviders } from "@/lib/auth/providers";
 import { getParam, type SearchParams } from "@/lib/auth/search-params";
@@ -55,7 +55,11 @@ const AccountPage = async ({
 					providers={connectedProviders}
 					avatars={avatars}
 				/>
-				{hasPassword ? <ChangePasswordForm /> : <PasswordNotSetNotice />}
+				{hasPassword ? (
+					<ChangePasswordForm />
+				) : (
+					<PasswordNotSetNotice canResetPassword={passwordResetEnabled} />
+				)}
 				<ConnectedAccounts
 					providers={enabledProviders}
 					accounts={accounts}

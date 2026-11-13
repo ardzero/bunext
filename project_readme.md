@@ -12,9 +12,8 @@ An Nextjs website built on top of the [bunext](https://bunext.ardzero.com/) star
 
 ```bash
 bun install
-# creates .env.local (if missing) and generates BETTER_AUTH_SECRET
-bun run setup
-# add DATABASE_URL to .env.local, then run setup again: it tests the connection and migrates
+# creates .env.local, generates BETTER_AUTH_SECRET, asks for DATABASE_URL and
+# your admin email, tests the connection and migrates. Safe to run again.
 bun run setup
 bun run dev
 ```
@@ -34,7 +33,7 @@ Open [localhost:3000](http://localhost:3000), create an account, and you're in. 
 | `bun run db:studio`     | Browse the database with Drizzle Studio                            |
 | `bun run auth:generate` | Regenerate `src/lib/db/schema/auth.ts` after changing auth plugins |
 | `bun run seed:admin`    | Promote the user with `ADMIN_EMAIL` to admin                       |
-| `bun test`              | Run the tests (`bun run test` loads `.env.local`)                  |
+| `bun run test`          | Run the tests (loads `.env.local`; bare `bun test` does not work)  |
 | `bun run typecheck`     | Type-check                                                         |
 | `bun run lint`          | Lint                                                               |
 
@@ -42,31 +41,32 @@ Open [localhost:3000](http://localhost:3000), create an account, and you're in. 
 
 Set them in `.env.local` locally and in your host's settings in production. `.env.example` lists them all.
 
-| Variable                                     | Required      | Purpose                                                                                                                |
-| :------------------------------------------- | :------------ | :--------------------------------------------------------------------------------------------------------------------- |
-| `BETTER_AUTH_SECRET`                         | yes           | Signs sessions. 32+ characters, keep it stable (`openssl rand -base64 32`)                                             |
-| `BETTER_AUTH_URL`                            | in production | Canonical URL, e.g. `https://example.com`. Vercel previews fall back to `https://$VERCEL_URL`                          |
-| `DATABASE_URL`                               | yes           | Runtime connection, pooled where available                                                                             |
-| `DATABASE_URL_UNPOOLED`                      | no            | Direct connection for migrations; falls back to `DATABASE_URL`                                                         |
-| `ADMIN_EMAIL`                                | no            | Used by `bun run seed:admin`                                                                                           |
-| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`   | no            | Enables Google sign-in                                                                                                 |
-| `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET` | no            | Enables Discord sign-in                                                                                                |
-| `RESEND_API_KEY`, `MAIL_FROM`                | no            | Sends real email through [Resend](https://resend.com). Turns on required email verification and production magic links |
+| Variable                                     | Required      | Purpose                                                                                                                                           |
+| :------------------------------------------- | :------------ | :------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `BETTER_AUTH_SECRET`                         | yes           | Signs sessions. 32+ characters, keep it stable (`openssl rand -base64 32`)                                                                        |
+| `BETTER_AUTH_URL`                            | in production | Canonical URL, e.g. `https://example.com`. On Vercel it can be left out: production uses the project's production domain, previews the branch URL |
+| `DATABASE_URL`                               | yes           | Runtime connection, pooled where available                                                                                                        |
+| `DATABASE_URL_UNPOOLED`                      | no            | Direct connection for migrations; falls back to `DATABASE_URL`                                                                                    |
+| `ADMIN_EMAIL`                                | no            | Used by `bun run setup` and `bun run seed:admin`                                                                                                  |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`   | no            | Enables Google sign-in                                                                                                                            |
+| `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET` | no            | Enables Discord sign-in                                                                                                                           |
+| `RESEND_API_KEY`, `MAIL_FROM`                | in production | Sends real email through [Resend](https://resend.com). Turns on required email verification, password reset and magic links in production         |
+| `ALLOW_NO_MAILER`                            | no            | `true` lets production start without the two above (see below)                                                                                    |
 
 When a user whose email isn't verified yet signs in with a magic link, Better Auth removes the sign-in methods they added before proving the address (password, linked providers) and signs out their other sessions. This prevents account pre-hijacking. They can set a password again with "Forgot password?".
 
-Signing in with Google or Discord (or any provider that reports a verified email) using an address that already has an account signs in to that account and connects the provider automatically. If that account was never verified, its password, other linked providers and sessions are removed first, for the same reason. Without a mailer, "Forgot password?" can't restore the password afterwards; the user keeps access through the provider.
-
 Each connected provider's profile picture is saved (`provider_avatar` table). A new user gets their provider's picture; a user who already has one keeps it and can switch on the account page. Upgrading an existing install needs `bun run db:migrate` for this table.
 
-Without a mailer, production still works: sign-up doesn't require verification, magic links are hidden, and the server logs a warning at startup.
+Production refuses to start without a mailer, unless `ALLOW_NO_MAILER=true`. With it, no email is ever sent or logged: sign-up doesn't require verification (so the sign-up form reveals whether an address is registered), and password reset and magic links are turned off. In development, emails are printed to the terminal.
+
+Security defaults: magic-link tokens are stored hashed, the mail-sending endpoints are limited to 5 emails per address per 15 minutes in production (on top of Better Auth's per-IP limits; anyone can use up an address's quota, which delays that user's own emails for up to 15 minutes), and every response carries anti-framing, `nosniff`, referrer and (in production) HSTS headers (without `includeSubDomains`; add it once every subdomain serves HTTPS) from `next.config.ts`. Signing in with a provider whose email matches an existing account links it only when both the provider and the account have verified that email; otherwise the user signs in another way and connects the provider from `/account`.
 
 ## Authentication
 
 Built with [Better Auth](https://www.better-auth.com) and [Drizzle](https://orm.drizzle.team) on Postgres.
 
 - Email and password, magic links, Google and Discord (each provider is enabled only when both of its keys are set)
-- Roles `user` (default) and `admin`, with an admin user list at `/admin`
+- Roles `user` (default) and `admin`, with an admin user list at `/admin`. Through Better Auth's admin API, admins can list and view users, ban or unban them and revoke their sessions; impersonation, role changes, deleting users and setting their password or email are not granted (see `adminAc` in `src/lib/auth/auth.ts`)
 - Account page at `/account`: profile, profile picture (pick one from any connected provider, or refresh it), password, connected accounts, active sessions
 - Protected area under `src/app/(app)`; auth pages under `src/app/(auth)`
 
@@ -111,9 +111,10 @@ To show or hide UI, use `<SignedIn>`, `<SignedOut>` and `<RoleGate role="admin">
 
 ### First admin
 
-1. Sign up with the address you want to be admin.
-2. Set `ADMIN_EMAIL` to that address in `.env.local`.
-3. Run `bun run seed:admin`, then reload.
+1. Sign up with the address you want to be admin. `bun run setup` asks for it and saves it as `ADMIN_EMAIL`; otherwise set it in `.env.local`.
+2. Run `bun run seed:admin` (or `bun run setup` again), then reload.
+
+With a mailer configured, an account whose email isn't verified is refused, since anyone can sign up with an address they don't own. The account's sign-up date is always printed so you can check it's yours.
 
 ### Adding a provider
 
@@ -141,7 +142,7 @@ The app only needs a Postgres connection string. Point `DATABASE_URL` (and `DATA
 ## Deploying to Vercel
 
 1. Push the repository and import it in Vercel.
-2. Add the environment variables: `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` (your production URL), `DATABASE_URL`, `DATABASE_URL_UNPOOLED` and any optional ones. The Neon integration in the Vercel Marketplace can set the database URLs for you.
+2. Add the environment variables: `BETTER_AUTH_SECRET`, `DATABASE_URL`, `DATABASE_URL_UNPOOLED`, `RESEND_API_KEY` and `MAIL_FROM` (or `ALLOW_NO_MAILER=true`), and any optional ones. The Neon integration in the Vercel Marketplace can set the database URLs for you. `BETTER_AUTH_URL` is optional on Vercel; set it if your canonical domain isn't the project's production domain.
 3. **Run migrations against the production database before the first deploy** (and after every schema change):
 
    ```bash
@@ -149,7 +150,7 @@ The app only needs a Postgres connection string. Point `DATABASE_URL` (and `DATA
    ```
 
 4. Deploy, then register the production callback URLs with Google and Discord.
-5. For production email (verification and magic links), verify a domain in Resend and set `RESEND_API_KEY` and `MAIL_FROM`.
+5. For production email (verification, password reset and magic links), verify a domain in Resend before setting `RESEND_API_KEY` and `MAIL_FROM`.
 
 ## Tech Stack
 

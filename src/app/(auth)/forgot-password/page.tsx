@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { signInHref } from "@/components/auth/auth-paths";
 import { ForgotPasswordForm } from "@/components/auth/forgot-password-form";
 import {
@@ -10,12 +11,15 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
+import { passwordResetEnabled } from "@/lib/auth/auth";
 import { DEFAULT_REDIRECT } from "@/lib/auth/safe-redirect";
 import { redirectIfSignedIn } from "@/lib/auth/session";
 
 export const metadata: Metadata = { title: "Forgot password" };
 
 const ForgotPasswordPage = async () => {
+	// production without a mailer: no reset emails can be sent
+	if (!passwordResetEnabled) notFound();
 	await redirectIfSignedIn(DEFAULT_REDIRECT);
 
 	return (

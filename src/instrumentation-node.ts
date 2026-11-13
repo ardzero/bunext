@@ -1,5 +1,6 @@
-// Validate env at startup (exit on a missing BETTER_AUTH_SECRET in production)
-// and log the mailer warning once, instead of failing on the first request.
+// Validate env at startup (in production: exit on a missing BETTER_AUTH_SECRET,
+// base URL or mailer) and log the no-mailer warning once, instead of failing
+// on the first request.
 try {
 	await import("@/lib/auth/mailer");
 } catch (error) {

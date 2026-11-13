@@ -26,7 +26,7 @@ const AUTH_ERROR_MESSAGES: Record<string, string> = {
 	TOO_MANY_REQUESTS: "Too many attempts. Wait a moment and try again.",
 	// OAuth callback errors
 	account_not_linked:
-		"This provider hasn't verified your email address, so we couldn't connect it to your existing account. Sign in another way instead.",
+		"An account with this email already exists. Sign in with your password or email link, then connect this provider from your account page.",
 	account_already_linked_to_different_user:
 		"This provider account is already connected to a different user.",
 	email_does_not_match: "The provider account uses a different email address.",

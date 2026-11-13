@@ -18,7 +18,7 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import { FieldSeparator } from "@/components/ui/field";
-import { magicLinkEnabled } from "@/lib/auth/auth";
+import { magicLinkEnabled, passwordResetEnabled } from "@/lib/auth/auth";
 import { enabledProviders } from "@/lib/auth/providers";
 import { safeRedirect } from "@/lib/auth/safe-redirect";
 import { getParam, type SearchParams } from "@/lib/auth/search-params";
@@ -51,7 +51,10 @@ const SignInPage = async ({ searchParams }: { searchParams: SearchParams }) => {
 				{magicLinkEnabled ? (
 					<>
 						<SignInMethodPanel method="password">
-							<SignInForm redirectTo={redirectTo} />
+							<SignInForm
+								redirectTo={redirectTo}
+								canResetPassword={passwordResetEnabled}
+							/>
 						</SignInMethodPanel>
 						<SignInMethodPanel method="magic-link">
 							<MagicLinkForm redirectTo={redirectTo} />
@@ -59,7 +62,10 @@ const SignInPage = async ({ searchParams }: { searchParams: SearchParams }) => {
 						<SignInMethodToggle />
 					</>
 				) : (
-					<SignInForm redirectTo={redirectTo} />
+					<SignInForm
+						redirectTo={redirectTo}
+						canResetPassword={passwordResetEnabled}
+					/>
 				)}
 			</CardContent>
 			<CardFooter className="justify-center gap-1 text-muted-foreground">

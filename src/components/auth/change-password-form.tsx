@@ -158,9 +158,13 @@ const ChangePasswordForm = ({
 	);
 };
 
-type PasswordNotSetNoticeProps = React.ComponentProps<typeof Card>;
+type PasswordNotSetNoticeProps = React.ComponentProps<typeof Card> & {
+	// false when password reset is off (production without a mailer)
+	canResetPassword?: boolean;
+};
 
 const PasswordNotSetNotice = ({
+	canResetPassword = true,
 	className,
 	...props
 }: PasswordNotSetNoticeProps) => (
@@ -174,13 +178,19 @@ const PasswordNotSetNotice = ({
 			<CardTitle>Password</CardTitle>
 			<CardDescription>
 				You sign in with a provider or an email link, so there&apos;s no
-				password to change. To set one, use{" "}
-				<Link
-					href={FORGOT_PASSWORD_PATH}
-					className="rounded-sm text-foreground underline underline-offset-4 outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-				>
-					Forgot password?
-				</Link>
+				password to change.
+				{canResetPassword && (
+					<>
+						{" "}
+						To set one, use{" "}
+						<Link
+							href={FORGOT_PASSWORD_PATH}
+							className="rounded-sm text-foreground underline underline-offset-4 outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+						>
+							Forgot password?
+						</Link>
+					</>
+				)}
 			</CardDescription>
 		</CardHeader>
 	</Card>

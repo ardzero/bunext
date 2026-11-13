@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { signInHref } from "@/components/auth/auth-paths";
 import { ResetPasswordForm } from "@/components/auth/reset-password-form";
 import {
@@ -10,6 +11,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
+import { passwordResetEnabled } from "@/lib/auth/auth";
 import { getParam, type SearchParams } from "@/lib/auth/search-params";
 
 export const metadata: Metadata = { title: "Reset password" };
@@ -19,6 +21,7 @@ const ResetPasswordPage = async ({
 }: {
 	searchParams: SearchParams;
 }) => {
+	if (!passwordResetEnabled) notFound();
 	const params = await searchParams;
 
 	return (

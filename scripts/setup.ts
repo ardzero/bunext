@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
+import { hasMailerConfig, promoteAdmin } from "./lib/promote-admin";
 
 const ROOT = process.cwd();
 const ENV_FILE = join(ROOT, ".env.local");
@@ -16,10 +17,17 @@ const OAUTH_PROVIDERS = ["google", "discord"];
 const step = (message: string) => console.info(`\n› ${message}`);
 const done = (message: string) => console.info(`  ✓ ${message}`);
 
+const note = (message: string) => console.info(`  • ${message}`);
+
 const fail = (message: string): never => {
 	console.error(`\n✗ ${message}\n`);
 	process.exit(1);
 };
+
+// asks in a terminal; in CI or piped runs every answer is empty
+const canPrompt = Boolean(process.stdin.isTTY);
+const ask = (question: string) =>
+	canPrompt ? (prompt(`  ${question}`) ?? "").trim() : "";
 
 // reads KEY=value lines; ignores comments and blank lines
 const parseEnv = (content: string) =>
@@ -33,18 +41,33 @@ const parseEnv = (content: string) =>
 				const value = line.slice(separatorIndex + 1).trim();
 				return [
 					line.slice(0, separatorIndex).trim(),
-					value.replace(/^(['"])(.*)\1$/, "$2"),
+					value.replace(/^(['"])(.*)\1$/, "$2").replaceAll("\\$", "$"),
 				];
 			}),
 	) as Record<string, string>;
 
+// .env files expand `$NAME`, so a literal `$` (e.g. in a password) is escaped;
+// values with spaces, `#`, quotes or backslashes are quoted so they aren't cut
+const formatEnvValue = (value: string) => {
+	const escaped = value.replaceAll("$", "\\$");
+	return /[\s#'"\\]/.test(escaped) ? `"${escaped}"` : escaped;
+};
+
 // sets a value in place, or appends it when the key is missing
 const setEnvValue = (content: string, key: string, value: string) => {
+	const line = `${key}=${formatEnvValue(value)}`;
 	const pattern = new RegExp(`^${key}=.*$`, "m");
+	// a replacer function, so `$` in the value (e.g. a password) stays literal
 	return pattern.test(content)
-		? content.replace(pattern, `${key}=${value}`)
-		: `${content.trimEnd()}\n${key}=${value}\n`;
+		? content.replace(pattern, () => line)
+		: `${content.trimEnd()}\n${line}\n`;
 };
+
+const saveEnvValue = (key: string, value: string) =>
+	writeFileSync(
+		ENV_FILE,
+		setEnvValue(readFileSync(ENV_FILE, "utf8"), key, value),
+	);
 
 const ensureEnvFile = () => {
 	step("Environment file");
@@ -66,15 +89,62 @@ const ensureSecret = () => {
 	done("generated BETTER_AUTH_SECRET");
 };
 
-// connects (direct URL when available), then applies the migrations in ./drizzle
-const setupDatabase = async (env: Record<string, string>) => {
-	step("Database");
-	const databaseUrl = env.DATABASE_URL_UNPOOLED || env.DATABASE_URL;
+const ensureDatabaseUrl = () => {
+	step("Database URL");
+	if (parseEnv(readFileSync(ENV_FILE, "utf8")).DATABASE_URL)
+		return done("DATABASE_URL is set");
+
+	const databaseUrl = ask(
+		"Postgres connection string (create a free database on https://neon.tech):",
+	);
 	if (!databaseUrl) {
 		fail(
 			"DATABASE_URL is empty. Create a Postgres database (for example on https://neon.tech), add its connection string to .env.local, then run `bun run setup` again.",
 		);
 	}
+	if (!/^postgres(ql)?:\/\//.test(databaseUrl)) {
+		fail("That is not a Postgres URL; it should start with postgres://.");
+	}
+	saveEnvValue("DATABASE_URL", databaseUrl);
+	done("saved DATABASE_URL to .env.local");
+};
+
+const ensureAdminEmail = () => {
+	step("First admin");
+	if (parseEnv(readFileSync(ENV_FILE, "utf8")).ADMIN_EMAIL)
+		return done("ADMIN_EMAIL is set");
+
+	const adminEmail = ask("Your email, to make it the admin (Enter to skip):");
+	if (!adminEmail) return note("skipped; set ADMIN_EMAIL later");
+	if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(adminEmail)) {
+		return note("not a valid email; skipped. Set ADMIN_EMAIL in .env.local");
+	}
+	saveEnvValue("ADMIN_EMAIL", adminEmail);
+	done("saved ADMIN_EMAIL to .env.local");
+};
+
+// promotes ADMIN_EMAIL when that user has already signed up
+const setupAdmin = async (
+	sql: postgres.Sql,
+	env: Record<string, string>,
+): Promise<boolean> => {
+	if (!env.ADMIN_EMAIL) return false;
+
+	const { promoted, message } = await promoteAdmin(drizzle(sql), {
+		email: env.ADMIN_EMAIL,
+		requireVerified: hasMailerConfig(env),
+	});
+	if (promoted) done(message);
+	else note(message);
+	return promoted;
+};
+
+// connects (direct URL when available), applies the migrations in ./drizzle,
+// then promotes the admin; returns whether the admin is set up
+const setupDatabase = async (env: Record<string, string>) => {
+	step("Database");
+	const databaseUrl = env.DATABASE_URL_UNPOOLED || env.DATABASE_URL;
+	if (!databaseUrl) fail("DATABASE_URL is empty.");
 
 	const sql = postgres(databaseUrl, {
 		prepare: false,
@@ -87,14 +157,15 @@ const setupDatabase = async (env: Record<string, string>) => {
 		done(`connected: ${version.split(" on ")[0]}`);
 		await migrate(drizzle(sql), { migrationsFolder: join(ROOT, "drizzle") });
 		done("migrations applied");
+		return await setupAdmin(sql, env);
 	} catch (error) {
-		fail(`Database setup failed: ${(error as Error).message}`);
+		return fail(`Database setup failed: ${(error as Error).message}`);
 	} finally {
 		await sql.end({ timeout: 5 });
 	}
 };
 
-const printNextSteps = (env: Record<string, string>) => {
+const printNextSteps = (env: Record<string, string>, adminReady: boolean) => {
 	const origins = [LOCAL_URL, env.BETTER_AUTH_URL]
 		.filter(Boolean)
 		.filter((origin, index, all) => all.indexOf(origin) === index);
@@ -108,19 +179,23 @@ const printNextSteps = (env: Record<string, string>) => {
 		}
 	}
 
+	const adminStep = adminReady
+		? ""
+		: "\n  bun run seed:admin   after signing up, promote ADMIN_EMAIL to admin";
 	console.info(`
 Setup complete.
-  bun run dev          start the app on ${LOCAL_URL}
-  bun run seed:admin   after signing up, promote ADMIN_EMAIL to admin
+  bun run dev          start the app on ${LOCAL_URL}${adminStep}
 `);
 };
 
 const setup = async () => {
 	ensureEnvFile();
 	ensureSecret();
+	ensureDatabaseUrl();
+	ensureAdminEmail();
 	const env = parseEnv(readFileSync(ENV_FILE, "utf8"));
-	await setupDatabase(env);
-	printNextSteps(env);
+	const adminReady = await setupDatabase(env);
+	printNextSteps(env, adminReady);
 };
 
 await setup();
