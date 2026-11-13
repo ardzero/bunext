@@ -57,6 +57,8 @@ When a user whose email isn't verified yet signs in with a magic link, Better Au
 
 Signing in with Google or Discord (or any provider that reports a verified email) using an address that already has an account signs in to that account and connects the provider automatically. If that account was never verified, its password, other linked providers and sessions are removed first, for the same reason. Without a mailer, "Forgot password?" can't restore the password afterwards; the user keeps access through the provider.
 
+Each connected provider's profile picture is saved (`provider_avatar` table). A new user gets their provider's picture; a user who already has one keeps it and can switch on the account page. Upgrading an existing install needs `bun run db:migrate` for this table.
+
 Without a mailer, production still works: sign-up doesn't require verification, magic links are hidden, and the server logs a warning at startup.
 
 ## Authentication
@@ -65,7 +67,7 @@ Built with [Better Auth](https://www.better-auth.com) and [Drizzle](https://orm.
 
 - Email and password, magic links, Google and Discord (each provider is enabled only when both of its keys are set)
 - Roles `user` (default) and `admin`, with an admin user list at `/admin`
-- Account page at `/account`: profile, password, connected accounts, active sessions
+- Account page at `/account`: profile, profile picture (pick one from any connected provider, or refresh it), password, connected accounts, active sessions
 - Protected area under `src/app/(app)`; auth pages under `src/app/(auth)`
 
 ### Protecting pages and actions

@@ -14,6 +14,7 @@ import { baseURL, env, isBuildPhase } from "@/lib/env";
 import {
 	captureMissingProviderAvatarAfterUpdate,
 	captureProviderAvatarAfterLink,
+	forgetProviderAvatarAfterUnlink,
 	stripUnprovenAccessBeforeLink,
 } from "./link-hooks";
 import { hasRealMailer, renderActionEmail, sendMail } from "./mailer";
@@ -126,6 +127,7 @@ export const auth = betterAuth({
 				after: captureProviderAvatarAfterLink,
 			},
 			update: { after: captureMissingProviderAvatarAfterUpdate },
+			delete: { after: forgetProviderAvatarAfterUnlink },
 		},
 	},
 	rateLimit: {

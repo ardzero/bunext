@@ -86,7 +86,7 @@ If the docs contradict a decision in section 3, stop and report rather than impr
 ### M2: Database
 
 - `src/lib/db/index.ts`: the only file that imports the driver. Reads `DATABASE_URL`, creates the postgres.js client with `prepare: false`, wraps it in Drizzle, and keeps a `globalThis` singleton in development.
-- `src/lib/db/schema/auth.ts` (generated in M3), `schema/app.ts` (empty apart from a short comment showing where domain tables go), `schema/index.ts`.
+- `src/lib/db/schema/auth.ts` (generated in M3), `schema/app.ts` (domain tables; holds `provider_avatar`, see Profile pictures below), `schema/index.ts`.
 - `drizzle.config.ts`: uses `DATABASE_URL_UNPOOLED`, falling back to `DATABASE_URL`.
 - No provider-specific features in the schema.
 
@@ -176,6 +176,7 @@ Account page sections (each a `Card`, composed by the page):
 |---|---|
 | `ProfileForm` | Update display name; email shown read-only with a verified/unverified badge |
 | `ChangePasswordForm` | Current, new and confirm password; signs out other sessions on success; rendered only when the user has a password credential (users who only ever signed in with a provider or a magic link see a short note instead) |
+| `ProfilePicture` | One row per connected provider with its saved picture; "Use" makes it the profile picture, "Refresh" ("Fetch" when none is saved) pulls the latest one from the provider. Server actions in `src/actions/provider-avatar.ts` |
 | `ConnectedAccounts` | One row per enabled provider with linked state and link/unlink actions; refuses to unlink the last remaining sign-in method; shows link errors through `AuthError` |
 | `ActiveSessions` | Lists sessions with device and last-active, marks the current one, revokes others individually |
 
@@ -238,7 +239,7 @@ Confirm the Better Auth names in M0. Callback URLs are `/api/auth/callback/googl
 8. `NODE_ENV=production bun run start` without `BETTER_AUTH_SECRET` fails with a clear error; with it but without a mailer, it starts and logs the warning.
 9. If social keys were provided: sign-in works and a user whose email matches an existing account is signed in to it and the provider is connected automatically; a signed-in email user can also link the provider on `/account`. If not, state that this was not tested.
 9a. Switching from sign-in to sign-up and back keeps `returnTo`. Wrong-password and unknown-email attempts show the same message. An expired or reused reset link shows the recovery state, not a crash.
-9b. On `/account`: name update, password change and revoking another session work; the last sign-in method cannot be unlinked.
+9b. On `/account`: switching and refreshing the profile picture per provider, name update, password change and revoking another session work; the last sign-in method cannot be unlinked.
 9c. Every auth form is usable by keyboard alone and renders correctly in light and dark at 320px width.
 9d. Magic link: requesting one prints the link through the console mailer; opening it signs in and lands on `returnTo`; opening it a second time shows the expired-link state. With `NODE_ENV=production` and no real mailer, the option is not rendered.
 10. `bun run setup` works on a copy of the project with no `.env.local`, and is harmless when run twice.
@@ -292,4 +293,16 @@ Corrected assumptions:
 - Tests never send real email: with `NODE_ENV=test` the console mailer is always used.
 - Rate limiting is enabled only in production by default (`rateLimit.enabled` defaults to `isProduction`).
 - Better Auth reads `BETTER_AUTH_SECRET` (or `AUTH_SECRET`) and `BETTER_AUTH_URL`. The names in section 6 are correct.
+
+### Profile pictures
+
+- Better Auth keeps one `user.image`. `provider_avatar` (`src/lib/db/schema/app.ts`, migration `drizzle/0001_*`) stores the latest picture per user and provider: unique on (`user_id`, `provider_id`), cascades with the user.
+- Hooks in `src/lib/auth/link-hooks.ts`, wired in `databaseHooks.account`:
+  - `create.after` (`captureProviderAvatarAfterLink`): new sign-up or link saves the provider's picture, and fills `user.image` only when it is empty. A connected user keeps their current picture.
+  - `update.after` (`captureMissingProviderAvatarAfterUpdate`): a sign-in with an already-linked provider saves the picture when none is stored yet (accounts linked before this table existed). Otherwise it does nothing; refreshing is manual.
+  - `delete.after` (`forgetProviderAvatarAfterUnlink`): unlinking a provider deletes its saved picture.
+  - All three swallow and log errors, so a provider or database failure never breaks sign-in. They do add one provider request to a sign-in that captures a picture.
+- `fetchProviderImage` (`src/lib/auth/provider-avatars.ts`) asks Google's userinfo endpoint directly, because Better Auth's Google provider only decodes the stored ID token and would keep returning the picture from sign-in time. Other providers use their own `getUserInfo`.
+- Refresh gets a valid access token through `getAccessToken` (refreshing it when possible). Without a usable token (for example Google without a refresh token after an hour) it asks the user to reconnect the provider.
+- Pictures are stored as the provider's image URL, not copied. If OAuth token encryption (`encryptOAuthTokens`) is ever turned on, the hooks must decrypt the access token first.
 

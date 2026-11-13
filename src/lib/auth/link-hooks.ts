@@ -1,7 +1,12 @@
 import type { GenericEndpointContext } from "better-auth";
 import { getSessionFromCtx } from "better-auth/api";
 import { revokeUnprovenAccountAccess } from "better-auth/db";
-import { findProviderAvatar, saveProviderAvatar } from "./provider-avatars";
+import {
+	deleteProviderAvatar,
+	fetchProviderImage,
+	findProviderAvatar,
+	saveProviderAvatar,
+} from "./provider-avatars";
 
 type NewAccount = { providerId: string; userId: string };
 
@@ -57,11 +62,10 @@ export const captureProviderAvatarAfterLink = async (
 		);
 		if (!provider || !account.accessToken) return;
 
-		const info = await provider.getUserInfo({
+		const imageUrl = await fetchProviderImage(provider, {
 			accessToken: account.accessToken,
 			idToken: account.idToken ?? undefined,
 		});
-		const imageUrl = info?.user.image;
 		if (!imageUrl) return;
 
 		await saveProviderAvatar({
@@ -93,8 +97,28 @@ export const captureMissingProviderAvatarAfterUpdate = async (
 ) => {
 	if (!account?.userId || account.providerId === "credential") return;
 
-	const saved = await findProviderAvatar(account.userId, account.providerId);
-	if (saved) return;
+	try {
+		const saved = await findProviderAvatar(account.userId, account.providerId);
+		if (saved) return;
+	} catch (error) {
+		ctx?.context.logger.error("Could not read the provider avatar", error);
+		return;
+	}
 
 	await captureProviderAvatarAfterLink(account, ctx);
+};
+
+// Disconnecting a provider forgets its picture, so it can't be selected later
+// and a different account linked to the same provider starts fresh.
+export const forgetProviderAvatarAfterUnlink = async (
+	account: NewAccount | null,
+	ctx: GenericEndpointContext | null,
+) => {
+	if (!account || account.providerId === "credential") return;
+
+	try {
+		await deleteProviderAvatar(account.userId, account.providerId);
+	} catch (error) {
+		ctx?.context.logger.error("Could not remove the provider avatar", error);
+	}
 };

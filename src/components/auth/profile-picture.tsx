@@ -54,8 +54,9 @@ const ProfilePicture = ({
 			setPending({ providerId: provider.id, kind });
 			const action =
 				kind === "select" ? selectProviderAvatar : refreshProviderAvatar;
-			const { error } = await action(provider.id);
-			setPending(null);
+			const { error } = await action(provider.id)
+				.catch(() => ({ error: "Something went wrong. Try again." }))
+				.finally(() => setPending(null));
 			if (error) {
 				toast.error(error);
 				return;
@@ -85,6 +86,7 @@ const ProfilePicture = ({
 						)?.imageUrl;
 						const isInUse = Boolean(imageUrl) && imageUrl === user.image;
 						const isRowPending = pending?.providerId === provider.id;
+						const actionLabel = imageUrl ? "Refresh" : "Fetch";
 
 						return (
 							<li
@@ -100,9 +102,18 @@ const ProfilePicture = ({
 										image: imageUrl,
 									}}
 								/>
-								<div className="flex min-w-0 flex-1 items-center gap-2">
-									<span className="truncate font-medium">{provider.label}</span>
-									{isInUse && <Badge variant="secondary">In use</Badge>}
+								<div className="flex min-w-0 flex-1 flex-col">
+									<div className="flex items-center gap-2">
+										<span className="truncate font-medium">
+											{provider.label}
+										</span>
+										{isInUse && <Badge variant="secondary">In use</Badge>}
+									</div>
+									{!imageUrl && (
+										<span className="text-xs text-muted-foreground">
+											No picture saved yet.
+										</span>
+									)}
 								</div>
 								<div className="flex gap-2">
 									{imageUrl && !isInUse && (
@@ -128,7 +139,7 @@ const ProfilePicture = ({
 										type="button"
 										variant="ghost"
 										size="sm"
-										aria-label={`Refresh ${provider.label} picture`}
+										aria-label={`${actionLabel} ${provider.label} picture`}
 										aria-busy={
 											(isRowPending && pending?.kind === "refresh") || undefined
 										}
@@ -136,7 +147,7 @@ const ProfilePicture = ({
 										onClick={() => handleAction(provider, "refresh")}
 									>
 										{isRowPending && pending?.kind === "refresh" && <Spinner />}
-										{imageUrl ? "Refresh" : "Fetch"}
+										{actionLabel}
 									</Button>
 								</div>
 							</li>

@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth/auth";
 import { PROVIDER_IDS } from "@/lib/auth/provider-ids";
 import {
+	fetchProviderImage,
 	findProviderAvatar,
 	saveProviderAvatar,
 } from "@/lib/auth/provider-avatars";
@@ -15,6 +16,15 @@ type ProviderAvatarResult = { error: string } | { error?: undefined };
 const isProviderId = (value: string): value is (typeof PROVIDER_IDS)[number] =>
 	(PROVIDER_IDS as readonly string[]).includes(value);
 
+// the signed-in user's account row for a provider, if connected
+const findConnectedAccount = async (
+	requestHeaders: Headers,
+	providerId: string,
+) => {
+	const accounts = await auth.api.listUserAccounts({ headers: requestHeaders });
+	return accounts.find((item) => item.providerId === providerId) ?? null;
+};
+
 // Make a connected provider's saved picture the profile picture.
 export const selectProviderAvatar = async (
 	providerId: string,
@@ -22,11 +32,15 @@ export const selectProviderAvatar = async (
 	const { user } = await requireSession();
 	if (!isProviderId(providerId)) return { error: "Unknown provider." };
 
+	const requestHeaders = await headers();
+	const account = await findConnectedAccount(requestHeaders, providerId);
+	if (!account) return { error: "This provider isn't connected." };
+
 	const avatar = await findProviderAvatar(user.id, providerId);
 	if (!avatar) return { error: "No picture saved for this provider." };
 
 	await auth.api.updateUser({
-		headers: await headers(),
+		headers: requestHeaders,
 		body: { image: avatar.imageUrl },
 	});
 	revalidatePath("/account");
@@ -42,20 +56,28 @@ export const refreshProviderAvatar = async (
 	if (!isProviderId(providerId)) return { error: "Unknown provider." };
 
 	const requestHeaders = await headers();
-	const accounts = await auth.api.listUserAccounts({ headers: requestHeaders });
-	const account = accounts.find((item) => item.providerId === providerId);
+	const account = await findConnectedAccount(requestHeaders, providerId);
 	if (!account) return { error: "This provider isn't connected." };
 
-	const info = await auth.api
-		.accountInfo({ headers: requestHeaders, query: { accountId: account.id } })
-		.catch(() => null);
-	if (!info) {
+	const context = await auth.$context;
+	const provider = context.socialProviders.find(
+		(item) => item.id === providerId,
+	);
+	if (!provider) return { error: "This provider isn't available." };
+
+	// refreshes the access token first when it has expired
+	const imageUrl = await auth.api
+		.getAccessToken({
+			headers: requestHeaders,
+			body: { accountId: account.id },
+		})
+		.then((tokens) => fetchProviderImage(provider, tokens))
+		.catch(() => undefined);
+	if (imageUrl === undefined) {
 		return {
 			error: "Couldn't reach the provider. Reconnect it and try again.",
 		};
 	}
-
-	const imageUrl = info.user.image;
 	if (!imageUrl) return { error: "The provider has no profile picture." };
 
 	const previous = await findProviderAvatar(user.id, providerId);

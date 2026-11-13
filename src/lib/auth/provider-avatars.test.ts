@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, test } from "bun:test";
+import { afterAll, describe, expect, spyOn, test } from "bun:test";
 import { inArray } from "drizzle-orm";
 
 // Integration test against DATABASE_URL (run `bun run setup` first).
@@ -36,11 +36,11 @@ const hookContext = (
 	({
 		context: {
 			...context,
-			socialProviders: [{ id: "google", getUserInfo }],
+			socialProviders: [{ id: "discord", getUserInfo }],
 		},
 	}) as never;
 
-const newAccount = (userId: string, providerId = "google") => ({
+const newAccount = (userId: string, providerId = "discord") => ({
 	userId,
 	providerId,
 	accessToken: "token",
@@ -86,7 +86,7 @@ describe.skipIf(!hasDatabase)("provider avatars", () => {
 		);
 
 		expect(await listProviderAvatars(user.id)).toEqual([
-			{ providerId: "google", imageUrl },
+			{ providerId: "discord", imageUrl },
 		]);
 		expect((await context.internalAdapter.findUserById(user.id))?.image).toBe(
 			imageUrl,
@@ -147,13 +147,13 @@ describe.skipIf(!hasDatabase)("provider avatars", () => {
 			hookContext(context, async () => ({ user: { image: first } })),
 		);
 		expect(await listProviderAvatars(user.id)).toEqual([
-			{ providerId: "google", imageUrl: first },
+			{ providerId: "discord", imageUrl: first },
 		]);
 
 		// a saved picture is left for the manual refresh
 		await saveProviderAvatar({
 			userId: user.id,
-			providerId: "google",
+			providerId: "discord",
 			imageUrl: "https://img.test/chosen.png",
 		});
 		await captureMissingProviderAvatarAfterUpdate(
@@ -161,7 +161,78 @@ describe.skipIf(!hasDatabase)("provider avatars", () => {
 			hookContext(context, async () => ({ user: { image: first } })),
 		);
 		expect(await listProviderAvatars(user.id)).toEqual([
-			{ providerId: "google", imageUrl: "https://img.test/chosen.png" },
+			{ providerId: "discord", imageUrl: "https://img.test/chosen.png" },
 		]);
+	});
+
+	test("disconnecting a provider forgets its picture", async () => {
+		const {
+			forgetProviderAvatarAfterUnlink,
+			saveProviderAvatar,
+			listProviderAvatars,
+		} = await loadDeps();
+		const { context, user } = await createUser(null);
+		await saveProviderAvatar({
+			userId: user.id,
+			providerId: "discord",
+			imageUrl: "https://img.test/discord.png",
+		});
+
+		await forgetProviderAvatarAfterUnlink(
+			newAccount(user.id),
+			hookContext(context, async () => null),
+		);
+
+		expect(await listProviderAvatars(user.id)).toEqual([]);
+	});
+
+	test("a failing avatar lookup on sign-in is swallowed", async () => {
+		const { captureMissingProviderAvatarAfterUpdate } = await loadDeps();
+		const { context, user } = await createUser(null);
+
+		// a user id the provider_avatar query rejects (not a string)
+		await expect(
+			captureMissingProviderAvatarAfterUpdate(
+				{ ...newAccount(user.id), userId: { bad: true } as never },
+				hookContext(context, async () => null),
+			),
+		).resolves.toBeUndefined();
+	});
+});
+
+describe("fetchProviderImage", () => {
+	test("asks Google for the current picture instead of the stored ID token", async () => {
+		const { fetchProviderImage } = await import("./provider-avatars");
+		const fetchSpy = spyOn(globalThis, "fetch").mockResolvedValue(
+			Response.json({ picture: "https://img.test/latest.png" }),
+		);
+		const getUserInfo = async () => ({
+			user: { image: "https://img.test/stale.png" },
+		});
+
+		const imageUrl = await fetchProviderImage(
+			{ id: "google", getUserInfo },
+			{ accessToken: "token", idToken: "stale" },
+		);
+
+		expect(imageUrl).toBe("https://img.test/latest.png");
+		expect(fetchSpy.mock.calls[0]?.[0]).toContain("googleapis.com");
+		fetchSpy.mockRestore();
+	});
+
+	test("uses the provider's own user info for everyone else", async () => {
+		const { fetchProviderImage } = await import("./provider-avatars");
+
+		const imageUrl = await fetchProviderImage(
+			{
+				id: "discord",
+				getUserInfo: async () => ({
+					user: { image: "https://img.test/discord.png" },
+				}),
+			},
+			{ accessToken: "token" },
+		);
+
+		expect(imageUrl).toBe("https://img.test/discord.png");
 	});
 });
