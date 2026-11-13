@@ -11,7 +11,10 @@ import {
 import { db } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
 import { baseURL, env, isBuildPhase } from "@/lib/env";
-import { stripUnprovenAccessBeforeLink } from "./link-hooks";
+import {
+	captureProviderAvatarAfterLink,
+	stripUnprovenAccessBeforeLink,
+} from "./link-hooks";
 import { hasRealMailer, renderActionEmail, sendMail } from "./mailer";
 import { enabledProviderConfigs } from "./providers";
 import { ADMIN_ROLES, DEFAULT_ROLE, type Role } from "./roles";
@@ -116,7 +119,12 @@ export const auth = betterAuth({
 		},
 	},
 	databaseHooks: {
-		account: { create: { before: stripUnprovenAccessBeforeLink } },
+		account: {
+			create: {
+				before: stripUnprovenAccessBeforeLink,
+				after: captureProviderAvatarAfterLink,
+			},
+		},
 	},
 	rateLimit: {
 		storage: "database",

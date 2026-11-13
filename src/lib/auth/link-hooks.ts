@@ -1,6 +1,7 @@
 import type { GenericEndpointContext } from "better-auth";
 import { getSessionFromCtx } from "better-auth/api";
 import { revokeUnprovenAccountAccess } from "better-auth/db";
+import { saveProviderAvatar } from "./provider-avatars";
 
 type NewAccount = { providerId: string; userId: string };
 
@@ -33,4 +34,51 @@ export const stripUnprovenAccessBeforeLink = async (
 	if (session?.user.id === account.userId) return;
 
 	await revokeUnprovenAccountAccess(ctx, account.userId);
+};
+
+type CreatedAccount = NewAccount & {
+	accessToken?: string | null;
+	idToken?: string | null;
+};
+
+// Runs after a provider account is created (new sign-up or auto-link). Keeps
+// the provider's picture so the user can switch to it later, and fills
+// `user.image` when the user has no picture yet. A failure here must never
+// break sign-in, so everything is swallowed.
+export const captureProviderAvatarAfterLink = async (
+	account: CreatedAccount | null,
+	ctx: GenericEndpointContext | null,
+) => {
+	if (!account || !ctx || account.providerId === "credential") return;
+
+	try {
+		const provider = ctx.context.socialProviders.find(
+			(item) => item.id === account.providerId,
+		);
+		if (!provider || !account.accessToken) return;
+
+		const info = await provider.getUserInfo({
+			accessToken: account.accessToken,
+			idToken: account.idToken ?? undefined,
+		});
+		const imageUrl = info?.user.image;
+		if (!imageUrl) return;
+
+		await saveProviderAvatar({
+			userId: account.userId,
+			providerId: account.providerId,
+			imageUrl,
+		});
+
+		const existingUser = await ctx.context.internalAdapter.findUserById(
+			account.userId,
+		);
+		if (existingUser && !existingUser.image) {
+			await ctx.context.internalAdapter.updateUser(account.userId, {
+				image: imageUrl,
+			});
+		}
+	} catch (error) {
+		ctx.context.logger.error("Could not store the provider avatar", error);
+	}
 };

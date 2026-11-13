@@ -7,7 +7,9 @@ import {
 } from "@/components/auth/change-password-form";
 import { ConnectedAccounts } from "@/components/auth/connected-accounts";
 import { ProfileForm } from "@/components/auth/profile-form";
+import { ProfilePicture } from "@/components/auth/profile-picture";
 import { auth } from "@/lib/auth/auth";
+import { listProviderAvatars } from "@/lib/auth/provider-avatars";
 import { enabledProviders } from "@/lib/auth/providers";
 import { getParam, type SearchParams } from "@/lib/auth/search-params";
 import { requireSession } from "@/lib/auth/session";
@@ -24,13 +26,18 @@ const AccountPage = async ({
 }) => {
 	const { user, session } = await requireSession();
 	const requestHeaders = await headers();
-	const [accounts, sessions, params] = await Promise.all([
+	const [accounts, sessions, avatars, params] = await Promise.all([
 		auth.api.listUserAccounts({ headers: requestHeaders }),
 		auth.api.listSessions({ headers: requestHeaders }),
+		listProviderAvatars(user.id),
 		searchParams,
 	]);
 	const hasPassword = accounts.some(
 		(account) => account.providerId === CREDENTIAL_PROVIDER_ID,
+	);
+
+	const connectedProviders = enabledProviders.filter((provider) =>
+		accounts.some((account) => account.providerId === provider.id),
 	);
 
 	return (
@@ -43,6 +50,11 @@ const AccountPage = async ({
 			</div>
 			<div className="flex w-full max-w-2xl flex-col gap-6">
 				<ProfileForm user={user} />
+				<ProfilePicture
+					user={user}
+					providers={connectedProviders}
+					avatars={avatars}
+				/>
 				{hasPassword ? <ChangePasswordForm /> : <PasswordNotSetNotice />}
 				<ConnectedAccounts
 					providers={enabledProviders}
