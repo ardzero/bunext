@@ -133,6 +133,26 @@ describe.skipIf(!hasDatabase)("provider avatars", () => {
 		expect(await listProviderAvatars(user.id)).toEqual([]);
 	});
 
+	test("the provider gets the decrypted access token", async () => {
+		const { captureProviderAvatarAfterLink } = await loadDeps();
+		const { setTokenUtil } = await import("better-auth/oauth2");
+		const { context, user } = await createUser(null);
+		const getUserInfo = mock(async () => ({ user: { image: null } }));
+
+		await captureProviderAvatarAfterLink(
+			{
+				...newAccount(user.id),
+				accessToken: await setTokenUtil("plain-token", context as never),
+			},
+			hookContext(context, getUserInfo),
+		);
+
+		expect(getUserInfo).toHaveBeenCalledWith({
+			accessToken: "plain-token",
+			idToken: undefined,
+		});
+	});
+
 	test("a sign-in on an already-linked provider fills a missing picture once", async () => {
 		const {
 			captureMissingProviderAvatarAfterUpdate,

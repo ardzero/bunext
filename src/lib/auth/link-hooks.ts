@@ -1,4 +1,5 @@
 import type { GenericEndpointContext } from "better-auth";
+import { decryptOAuthToken } from "better-auth/oauth2";
 import {
 	deleteProviderAvatar,
 	fetchProviderImage,
@@ -29,8 +30,13 @@ export const captureProviderAvatarAfterLink = async (
 		);
 		if (!provider || !account.accessToken) return;
 
+		// hooks see the stored row, where the access token is encrypted
+		const accessToken = await decryptOAuthToken(
+			account.accessToken,
+			ctx.context,
+		);
 		const imageUrl = await fetchProviderImage(provider, {
-			accessToken: account.accessToken,
+			accessToken,
 			idToken: account.idToken ?? undefined,
 		});
 		if (!imageUrl) return;

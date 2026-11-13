@@ -5,10 +5,7 @@ import { revalidatePath } from "next/cache";
 import { APIError } from "better-auth/api";
 import { passwordSchema } from "@/components/auth/schemas";
 import { auth } from "@/lib/auth/auth";
-import {
-	consumeEmailRateLimit,
-	type EmailRateLimitRule,
-} from "@/lib/auth/email-rate-limit";
+import { consumeRateLimit, type RateLimitRule } from "@/lib/auth/rate-limit";
 import { requireSession } from "@/lib/auth/session";
 
 // `error` is a Better Auth error code, read with getAuthErrorMessage
@@ -16,7 +13,7 @@ type SetPasswordResult = { error: string } | { error?: undefined };
 
 // Server actions skip Better Auth's HTTP rate limiter, and every attempt hashes
 // the password, so cap attempts per user.
-const SET_PASSWORD_RATE_LIMIT: EmailRateLimitRule = { window: 60 * 15, max: 5 };
+const SET_PASSWORD_RATE_LIMIT: RateLimitRule = { window: 60 * 15, max: 5 };
 
 // Same check as Better Auth's freshSessionMiddleware: an old, possibly stolen
 // session must not be able to add a lasting way to sign in.
@@ -40,7 +37,7 @@ export const setPassword = async (
 		return { error: "SESSION_NOT_FRESH" };
 	}
 
-	const isWithinLimit = await consumeEmailRateLimit(
+	const isWithinLimit = await consumeRateLimit(
 		`set-password:${user.id}`,
 		SET_PASSWORD_RATE_LIMIT,
 	);

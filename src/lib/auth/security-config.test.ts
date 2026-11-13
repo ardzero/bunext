@@ -16,6 +16,24 @@ describe.skipIf(!hasDatabase)("auth security config", () => {
 		expect(linking?.trustedProviders).toEqual([]);
 	});
 
+	test("provider tokens are encrypted and their browser endpoints are off", async () => {
+		const auth = await loadAuth();
+		expect(auth.options.account?.encryptOAuthTokens).toBe(true);
+
+		for (const path of [
+			"/get-access-token",
+			"/refresh-token",
+			"/account-info",
+		]) {
+			const response = await auth.handler(
+				new Request(`${auth.options.baseURL}/api/auth${path}`, {
+					method: path === "/account-info" ? "GET" : "POST",
+				}),
+			);
+			expect(response.status).toBe(404);
+		}
+	});
+
 	test("admins can list and ban users but not impersonate or change roles", async () => {
 		const { userHasPermission } = (await loadAuth()).api;
 		const canAdmin = async (permissions: Record<string, string[]>) =>
@@ -37,7 +55,7 @@ describe.skipIf(!hasDatabase)("auth security config", () => {
 	});
 });
 
-describe.skipIf(!hasDatabase)("consumeEmailRateLimit", () => {
+describe.skipIf(!hasDatabase)("consumeRateLimit", () => {
 	const key = `email:rate-test-${crypto.randomUUID()}@example.com`;
 	const rule = { window: 60, max: 2 };
 
@@ -50,14 +68,14 @@ describe.skipIf(!hasDatabase)("consumeEmailRateLimit", () => {
 	});
 
 	test("allows `max` requests per window, then refuses until it ends", async () => {
-		const { consumeEmailRateLimit } = await import("./email-rate-limit");
+		const { consumeRateLimit } = await import("./rate-limit");
 		const start = Date.now();
 
-		expect(await consumeEmailRateLimit(key, rule, start)).toBe(true);
-		expect(await consumeEmailRateLimit(key, rule, start + 1000)).toBe(true);
-		expect(await consumeEmailRateLimit(key, rule, start + 2000)).toBe(false);
+		expect(await consumeRateLimit(key, rule, start)).toBe(true);
+		expect(await consumeRateLimit(key, rule, start + 1000)).toBe(true);
+		expect(await consumeRateLimit(key, rule, start + 2000)).toBe(false);
 		// a new window starts once the first one is over
-		expect(await consumeEmailRateLimit(key, rule, start + 61_000)).toBe(true);
+		expect(await consumeRateLimit(key, rule, start + 61_000)).toBe(true);
 	});
 });
 

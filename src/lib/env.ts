@@ -5,6 +5,7 @@ import { z } from "zod";
 // needing runtime secrets. Runtime requirements are enforced everywhere else.
 export const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
 const isProduction = process.env.NODE_ENV === "production";
+const isRuntimeProduction = isProduction && !isBuildPhase;
 
 // treat `KEY=` lines from .env files as unset
 const definedEnv = Object.fromEntries(
@@ -16,19 +17,41 @@ const requiredAtRuntime = (message: string) =>
 		? z.string().default("")
 		: z.string({ error: message }).min(1, message);
 
-const secretSchema =
-	isProduction && !isBuildPhase
-		? z
-				.string({ error: "BETTER_AUTH_SECRET is required in production." })
-				.min(32, "BETTER_AUTH_SECRET must be at least 32 characters.")
-		: z.string().optional();
+const secretSchema = isRuntimeProduction
+	? z
+			.string({ error: "BETTER_AUTH_SECRET is required in production." })
+			.min(32, "BETTER_AUTH_SECRET must be at least 32 characters.")
+	: z.string().optional();
+
+// Better Auth marks cookies Secure only for an https base URL; loopback http
+// stays allowed for `next start` on your own machine
+const isSecureAuthURL = (url: string) => {
+	// z.url() reports a malformed value
+	if (!URL.canParse(url)) return true;
+	const { protocol, hostname } = new URL(url);
+	return (
+		protocol === "https:" ||
+		(protocol === "http:" &&
+			["localhost", "127.0.0.1", "[::1]"].includes(hostname))
+	);
+};
+
+const authURLSchema = isRuntimeProduction
+	? z
+			.url()
+			.refine(
+				isSecureAuthURL,
+				"BETTER_AUTH_URL must use https in production (http is allowed for localhost only).",
+			)
+			.optional()
+	: z.url().optional();
 
 const envSchema = z.object({
 	NODE_ENV: z
 		.enum(["development", "production", "test"])
 		.default("development"),
 	BETTER_AUTH_SECRET: secretSchema,
-	BETTER_AUTH_URL: z.url().optional(),
+	BETTER_AUTH_URL: authURLSchema,
 	// set by Vercel; used when BETTER_AUTH_URL is not set
 	VERCEL_ENV: z.string().optional(),
 	VERCEL_URL: z.string().optional(),
@@ -86,8 +109,6 @@ export const trustedOrigins = [
 	(origin, index, all): origin is string =>
 		Boolean(origin) && all.indexOf(origin) === index,
 );
-
-const isRuntimeProduction = isProduction && !isBuildPhase;
 
 if (isRuntimeProduction && !baseURL) {
 	throw new Error(

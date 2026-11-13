@@ -1,33 +1,28 @@
 // One-time project setup. Safe to run again at any time.
 // Usage: bun run setup
-import { randomBytes } from "node:crypto";
 import { copyFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { drizzle } from "drizzle-orm/postgres-js";
-import { migrate } from "drizzle-orm/postgres-js/migrator";
-import postgres from "postgres";
+import type postgres from "postgres";
+import {
+	ask,
+	done,
+	fail,
+	generateSecret,
+	isPostgresUrl,
+	migrateDatabase,
+	note,
+	step,
+	withDatabase,
+} from "./lib/cli";
 import { hasMailerConfig, promoteAdmin } from "./lib/promote-admin";
+import { setupVercel } from "./lib/vercel";
 
 const ROOT = process.cwd();
 const ENV_FILE = join(ROOT, ".env.local");
 const ENV_EXAMPLE_FILE = join(ROOT, ".env.example");
 const LOCAL_URL = "http://localhost:3000";
 const OAUTH_PROVIDERS = ["google", "discord"];
-
-const step = (message: string) => console.info(`\n› ${message}`);
-const done = (message: string) => console.info(`  ✓ ${message}`);
-
-const note = (message: string) => console.info(`  • ${message}`);
-
-const fail = (message: string): never => {
-	console.error(`\n✗ ${message}\n`);
-	process.exit(1);
-};
-
-// asks in a terminal; in CI or piped runs every answer is empty
-const canPrompt = Boolean(process.stdin.isTTY);
-const ask = (question: string) =>
-	canPrompt ? (prompt(`  ${question}`) ?? "").trim() : "";
 
 // reads KEY=value lines; ignores comments and blank lines
 const parseEnv = (content: string) =>
@@ -84,8 +79,10 @@ const ensureSecret = () => {
 	if (parseEnv(content).BETTER_AUTH_SECRET)
 		return done("BETTER_AUTH_SECRET is set");
 
-	const secret = randomBytes(32).toString("base64");
-	writeFileSync(ENV_FILE, setEnvValue(content, "BETTER_AUTH_SECRET", secret));
+	writeFileSync(
+		ENV_FILE,
+		setEnvValue(content, "BETTER_AUTH_SECRET", generateSecret()),
+	);
 	done("generated BETTER_AUTH_SECRET");
 };
 
@@ -102,7 +99,7 @@ const ensureDatabaseUrl = () => {
 			"DATABASE_URL is empty. Create a Postgres database (for example on https://neon.tech), add its connection string to .env.local, then run `bun run setup` again.",
 		);
 	}
-	if (!/^postgres(ql)?:\/\//.test(databaseUrl)) {
+	if (!isPostgresUrl(databaseUrl)) {
 		fail("That is not a Postgres URL; it should start with postgres://.");
 	}
 	saveEnvValue("DATABASE_URL", databaseUrl);
@@ -146,22 +143,16 @@ const setupDatabase = async (env: Record<string, string>) => {
 	const databaseUrl = env.DATABASE_URL_UNPOOLED || env.DATABASE_URL;
 	if (!databaseUrl) fail("DATABASE_URL is empty.");
 
-	const sql = postgres(databaseUrl, {
-		prepare: false,
-		max: 1,
-		connect_timeout: 10,
-		onnotice: () => {},
-	});
 	try {
-		const [{ version }] = await sql<{ version: string }[]>`select version()`;
-		done(`connected: ${version.split(" on ")[0]}`);
-		await migrate(drizzle(sql), { migrationsFolder: join(ROOT, "drizzle") });
-		done("migrations applied");
-		return await setupAdmin(sql, env);
+		return await withDatabase(databaseUrl, async (sql) => {
+			const [{ version }] = await sql<{ version: string }[]>`select version()`;
+			done(`connected: ${version.split(" on ")[0]}`);
+			await migrateDatabase(sql);
+			done("migrations applied");
+			return setupAdmin(sql, env);
+		});
 	} catch (error) {
 		return fail(`Database setup failed: ${(error as Error).message}`);
-	} finally {
-		await sql.end({ timeout: 5 });
 	}
 };
 
@@ -195,6 +186,7 @@ const setup = async () => {
 	ensureAdminEmail();
 	const env = parseEnv(readFileSync(ENV_FILE, "utf8"));
 	const adminReady = await setupDatabase(env);
+	await setupVercel({ askFirst: true });
 	printNextSteps(env, adminReady);
 };
 

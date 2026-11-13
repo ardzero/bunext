@@ -29,11 +29,13 @@
 		"db:studio": "drizzle-kit studio",
 		"auth:generate": "bun --conditions=react-server node_modules/.bin/auth generate --config src/lib/auth/auth.ts --output src/lib/db/schema/auth.ts --yes",
 		"setup": "bun scripts/setup.ts",
+		"setup:vercel": "bun scripts/setup-vercel.ts",
 		"seed:admin": "bun --conditions=react-server scripts/seed-admin.ts",
 		"generate:icons": "bun scripts/generate-icons.ts"
 	},
 	"dependencies": {
 		"@base-ui/react": "^1.9.0",
+		"@better-auth/core": "1.7.23",
 		"better-auth": "1.7.23",
 		"class-variance-authority": "^0.7.1",
 		"clsx": "^2.1.1",

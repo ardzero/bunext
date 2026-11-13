@@ -1,4 +1,5 @@
-import { betterAuth } from "better-auth";
+import { getIP } from "@better-auth/core/utils/ip";
+import { betterAuth, type GenericEndpointContext } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
@@ -9,11 +10,6 @@ import { db } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
 import { baseURL, env, isBuildPhase, trustedOrigins } from "@/lib/env";
 import { requireDeletionPassword } from "./delete-account";
-import {
-	consumeEmailRateLimit,
-	emailRateLimitKey,
-	MAIL_SENDING_PATHS,
-} from "./email-rate-limit";
 import {
 	captureMissingProviderAvatarAfterUpdate,
 	captureProviderAvatarAfterLink,
@@ -26,6 +22,15 @@ import {
 	sendMail,
 } from "./mailer";
 import { enabledProviderConfigs } from "./providers";
+import {
+	consumeRateLimit,
+	EMAIL_RATE_LIMIT,
+	emailRateLimitKey,
+	MAIL_SENDING_PATHS,
+	SIGN_IN_ADDRESS_RATE_LIMIT,
+	SIGN_IN_CLIENT_RATE_LIMIT,
+	signInRateLimitKeys,
+} from "./rate-limit";
 import { ADMIN_ROLES, DEFAULT_ROLE, type Role } from "./roles";
 
 // Admin plugin permissions per role. Adding a role to ROLES in roles.ts makes
@@ -49,7 +54,18 @@ export const magicLinkEnabled = canSendMail;
 export const passwordResetEnabled = canSendMail;
 
 // Better Auth's rate limiting is on in production only; follow it
-const emailRateLimitEnabled = env.NODE_ENV === "production";
+const rateLimitEnabled = env.NODE_ENV === "production";
+
+const SIGN_IN_PATH = "/sign-in/email";
+
+// Browser-facing endpoints that return or refresh a user's provider tokens.
+// Nothing in the app calls them from the browser; server code still uses
+// `auth.api.getAccessToken`, which these paths don't affect.
+const DISABLED_TOKEN_PATHS = [
+	"/get-access-token",
+	"/refresh-token",
+	"/account-info",
+];
 
 // Better Auth only checks `sendResetPassword` when a reset is requested; the
 // endpoints that consume a token would still accept one issued earlier.
@@ -63,21 +79,50 @@ const assertPasswordResetEnabled = (path: string) => {
 	});
 };
 
-// caps mail per address across the mail-sending endpoints (see email-rate-limit.ts)
+// counts one email to `email` and returns whether it is within the quota
+const consumeEmailQuota = async (email: string) =>
+	!rateLimitEnabled ||
+	consumeRateLimit(emailRateLimitKey(email), EMAIL_RATE_LIMIT);
+
+// caps mail per address across the mail-sending endpoints (see rate-limit.ts)
 const limitMailPerAddress = async (path: string, email: unknown) => {
-	if (!emailRateLimitEnabled || !MAIL_SENDING_PATHS.includes(path)) return;
+	if (!MAIL_SENDING_PATHS.includes(path)) return;
 	if (typeof email !== "string" || !email) return;
 
-	if (await consumeEmailRateLimit(emailRateLimitKey(email))) return;
+	if (await consumeEmailQuota(email)) return;
 	throw new APIError("TOO_MANY_REQUESTS", {
 		message:
 			"Too many emails were requested for this address. Try again later.",
 	});
 };
 
+// password attempts, per address and IP and per address (see rate-limit.ts)
+const throttleSignIn = async (ctx: GenericEndpointContext) => {
+	const email = ctx.body?.email;
+	if (!rateLimitEnabled || ctx.path !== SIGN_IN_PATH) return;
+	if (typeof email !== "string" || !email) return;
+
+	const ip = getIP(
+		ctx.request ?? ctx.headers ?? new Headers(),
+		ctx.context.options,
+	);
+	const keys = signInRateLimitKeys(email, ip ?? "");
+	// without a resolvable IP every client would share the tight per-IP bucket,
+	// so only the per-address cap applies
+	const [clientAllowed, addressAllowed] = await Promise.all([
+		!ip || consumeRateLimit(keys.client, SIGN_IN_CLIENT_RATE_LIMIT),
+		consumeRateLimit(keys.address, SIGN_IN_ADDRESS_RATE_LIMIT),
+	]);
+	if (clientAllowed && addressAllowed) return;
+	throw new APIError("TOO_MANY_REQUESTS", {
+		message: "Too many sign-in attempts. Try again later.",
+	});
+};
+
 const beforeAuthRequest = createAuthMiddleware(async (ctx) => {
 	await requireDeletionPassword(ctx);
 	assertPasswordResetEnabled(ctx.path);
+	await throttleSignIn(ctx);
 	await limitMailPerAddress(ctx.path, ctx.body?.email);
 });
 
@@ -125,7 +170,18 @@ const sendResetPassword = async ({ user, url }: AuthEmail) => {
 	});
 };
 
-const sendVerificationEmail = async ({ user, url }: AuthEmail) => {
+const isSignInRequest = (request?: Request) =>
+	Boolean(request && new URL(request.url).pathname.endsWith(SIGN_IN_PATH));
+
+const sendVerificationEmail = async (
+	{ user, url }: AuthEmail,
+	request?: Request,
+) => {
+	// Sign-in resends verification to unverified accounts, outside the mail-quota
+	// hook. Over the quota the email is skipped; sign-in still answers normally.
+	if (isSignInRequest(request) && !(await consumeEmailQuota(user.email))) {
+		return;
+	}
 	await sendMail({
 		to: user.email,
 		subject: "Verify your email",
@@ -166,7 +222,10 @@ export const auth = betterAuth({
 		deleteUser: { enabled: true },
 	},
 	socialProviders,
+	disabledPaths: DISABLED_TOKEN_PATHS,
 	account: {
+		// access and refresh tokens are encrypted with BETTER_AUTH_SECRET at rest
+		encryptOAuthTokens: true,
 		accountLinking: {
 			enabled: true,
 			// Implicit linking needs a verified provider email AND a verified local

@@ -28,6 +28,7 @@ Open [localhost:3000](http://localhost:3000), create an account, and you're in. 
 | `bun run build`         | Production build                                                   |
 | `bun run start`         | Serve the production build                                         |
 | `bun run setup`         | Create `.env.local`, generate the secret, check the DB, migrate    |
+| `bun run setup:vercel`  | Push the secret, database and mail settings to Vercel; migrate     |
 | `bun run db:generate`   | Create a migration from schema changes in `src/lib/db/schema`      |
 | `bun run db:migrate`    | Apply pending migrations                                           |
 | `bun run db:studio`     | Browse the database with Drizzle Studio                            |
@@ -41,17 +42,17 @@ Open [localhost:3000](http://localhost:3000), create an account, and you're in. 
 
 Set them in `.env.local` locally and in your host's settings in production. `.env.example` lists them all.
 
-| Variable                                     | Required      | Purpose                                                                                                                                           |
-| :------------------------------------------- | :------------ | :------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `BETTER_AUTH_SECRET`                         | yes           | Signs sessions. 32+ characters, keep it stable (`openssl rand -base64 32`)                                                                        |
-| `BETTER_AUTH_URL`                            | in production | Canonical URL, e.g. `https://example.com`. On Vercel it can be left out: production uses the project's production domain, previews the branch URL |
-| `DATABASE_URL`                               | yes           | Runtime connection, pooled where available                                                                                                        |
-| `DATABASE_URL_UNPOOLED`                      | no            | Direct connection for migrations; falls back to `DATABASE_URL`                                                                                    |
-| `ADMIN_EMAIL`                                | no            | Used by `bun run setup` and `bun run seed:admin`                                                                                                  |
-| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`   | no            | Enables Google sign-in                                                                                                                            |
-| `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET` | no            | Enables Discord sign-in                                                                                                                           |
-| `RESEND_API_KEY`, `MAIL_FROM`                | in production | Sends real email through [Resend](https://resend.com). Turns on required email verification, password reset and magic links in production         |
-| `ALLOW_NO_MAILER`                            | no            | `true` lets production start without the two above (see below)                                                                                    |
+| Variable                                     | Required      | Purpose                                                                                                                                                                                                  |
+| :------------------------------------------- | :------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `BETTER_AUTH_SECRET`                         | yes           | Signs sessions and encrypts stored provider tokens. 32+ characters, keep it stable (`openssl rand -base64 32`); changing it signs everyone out and users must reconnect their providers                  |
+| `BETTER_AUTH_URL`                            | in production | Canonical URL, e.g. `https://example.com`; must be https in production (http only for localhost). On Vercel it can be left out: production uses the project's production domain, previews the branch URL |
+| `DATABASE_URL`                               | yes           | Runtime connection, pooled where available                                                                                                                                                               |
+| `DATABASE_URL_UNPOOLED`                      | no            | Direct connection for migrations; falls back to `DATABASE_URL`                                                                                                                                           |
+| `ADMIN_EMAIL`                                | no            | Used by `bun run setup` and `bun run seed:admin`                                                                                                                                                         |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`   | no            | Enables Google sign-in                                                                                                                                                                                   |
+| `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET` | no            | Enables Discord sign-in                                                                                                                                                                                  |
+| `RESEND_API_KEY`, `MAIL_FROM`                | in production | Sends real email through [Resend](https://resend.com). Turns on required email verification, password reset and magic links in production                                                                |
+| `ALLOW_NO_MAILER`                            | no            | `true` lets production start without the two above (see below)                                                                                                                                           |
 
 When a user whose email isn't verified yet signs in with a magic link, Better Auth removes the sign-in methods they added before proving the address (password, linked providers) and signs out their other sessions. This prevents account pre-hijacking. They can set a password again with "Forgot password?".
 
@@ -59,7 +60,7 @@ Each connected provider's profile picture is saved (`provider_avatar` table). A 
 
 Production refuses to start without a mailer, unless `ALLOW_NO_MAILER=true`. With it, no email is ever sent or logged: sign-up doesn't require verification (so the sign-up form reveals whether an address is registered), and password reset and magic links are turned off. In development, emails are printed to the terminal.
 
-Security defaults: magic-link tokens are stored hashed, the mail-sending endpoints are limited to 5 emails per address per 15 minutes in production (on top of Better Auth's per-IP limits; anyone can use up an address's quota, which delays that user's own emails for up to 15 minutes), and every response carries anti-framing, `nosniff`, referrer and (in production) HSTS headers (without `includeSubDomains`; add it once every subdomain serves HTTPS) from `next.config.ts`. Signing in with a provider whose email matches an existing account links it only when both the provider and the account have verified that email; otherwise the user signs in another way and connects the provider from `/account`.
+Security defaults: magic-link tokens are stored hashed, mail is limited to 5 emails per address per 15 minutes in production (on top of Better Auth's per-IP limits; anyone can use up an address's quota, which delays that user's own emails for up to 15 minutes), and password sign-in has separate limits that never touch the mail quota: 5 attempts per address and IP and 20 per address across all IPs, per 15 minutes. Hitting the per-address cap blocks password sign-in for that address until the window ends, while magic links and password reset keep working. Provider access and refresh tokens are encrypted at rest with `BETTER_AUTH_SECRET`, and Better Auth's browser-facing token endpoints (`/get-access-token`, `/refresh-token`, `/account-info`) are turned off; server code reads tokens with `auth.api.getAccessToken`. Every response carries anti-framing, `nosniff`, referrer and (in production) HSTS headers (without `includeSubDomains`; add it once every subdomain serves HTTPS) from `next.config.ts`. Signing in with a provider whose email matches an existing account links it only when both the provider and the account have verified that email; otherwise the user signs in another way and connects the provider from `/account`.
 
 ## Authentication
 
@@ -141,9 +142,12 @@ The app only needs a Postgres connection string. Point `DATABASE_URL` (and `DATA
 
 ## Deploying to Vercel
 
+Preview deployments run as production, so they need the same variables as production; without them every request returns a 500.
+
 1. Push the repository and import it in Vercel.
-2. Add the environment variables: `BETTER_AUTH_SECRET`, `DATABASE_URL`, `DATABASE_URL_UNPOOLED`, `RESEND_API_KEY` and `MAIL_FROM` (or `ALLOW_NO_MAILER=true`), and any optional ones. The Neon integration in the Vercel Marketplace can set the database URLs for you. `BETTER_AUTH_URL` is optional on Vercel; set it if your canonical domain isn't the project's production domain.
-3. **Run migrations against the production database before the first deploy** (and after every schema change):
+2. Run `bun run setup:vercel` (or answer yes at the end of `bun run setup`). For Preview and Production it sets a separate `BETTER_AUTH_SECRET`, asks for the database URL (use a separate database or Neon branch for previews) and migrates it, and asks for Resend settings (Enter sets `ALLOW_NO_MAILER=true`). It never overwrites a variable that's already set. Needs the [Vercel CLI](https://vercel.com/docs/cli).
+   To set them by hand instead, add `BETTER_AUTH_SECRET`, `DATABASE_URL`, `DATABASE_URL_UNPOOLED`, `RESEND_API_KEY` and `MAIL_FROM` (or `ALLOW_NO_MAILER=true`) to **both** Preview and Production. The Neon integration in the Vercel Marketplace can set the database URLs for you. `BETTER_AUTH_URL` is optional on Vercel; set it (https) if your canonical domain isn't the project's production domain.
+3. **Run migrations against the production database before the first deploy** (and after every schema change; `setup:vercel` does it for databases you enter there):
 
    ```bash
    DATABASE_URL_UNPOOLED="<production direct url>" bun run db:migrate

@@ -30,9 +30,10 @@ export const providerAvatar = pgTable(
 	],
 );
 
-// Mail sent per address, for the limit in src/lib/auth/email-rate-limit.ts.
-// Kept out of Better Auth's `rate_limit` table, which prunes rows older than
-// its own (shorter) windows.
+// Counters for the limits in src/lib/auth/rate-limit.ts: mail sent per address
+// and password attempts, each under its own key prefix. Kept out of Better
+// Auth's `rate_limit` table, which prunes rows older than its own (shorter)
+// windows.
 export const emailRateLimit = pgTable("email_rate_limit", {
 	key: text("key").primaryKey(),
 	count: integer("count").notNull(),
