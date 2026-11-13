@@ -2,7 +2,7 @@
 
 # create-bunext
 
-A CLI tool to scaffold the A CLI tool to scaffold the **Bunext** Next.js 16 starter kit configured with Tailwind CSS, Shadcn UI, Tailwind Motion, React Motion, and a bunch of utilities pre-configured.
+A CLI tool to scaffold the **Bunext** Next.js 16 starter kit configured with Tailwind CSS, Shadcn UI, Tailwind Motion, React Motion, and a bunch of utilities pre-configured.
 
 ## Quick Start
 
@@ -53,7 +53,7 @@ bun create bunext my-app -y
 bun create bunext my-app --cursor
 bun create bunext my-app --vscode
 
-# Record Better Auth + Drizzle selection
+# Create with Better Auth + Drizzle
 bun create bunext my-app --better-auth-drizzle
 
 # Skip steps
@@ -74,13 +74,25 @@ bun create bunext my-app -y --cursor
 | `-y`, `--yes`                | Skip all prompts and use defaults (install deps, init git) |
 | `--install` / `--no-install` | Install or skip installing dependencies                    |
 | `--git` / `--no-git`         | Initialize or skip git repository                          |
-| `--better-auth-drizzle`      | Record Better Auth + Drizzle selection only                 |
+| `--better-auth-drizzle`      | Create with Better Auth + Drizzle                 |
 | `--cursor`                   | Open project in Cursor after creation                      |
 | `--vscode`                   | Open project in VS Code after creation                     |
 | `-h`, `--help`               | Show help message with examples                            |
 | `-v`, `--version`            | Show CLI version                                           |
 
-Selecting **Better Auth + Drizzle** saves `{"betterAuthDrizzle": true}` in the generated project’s `bunext.config.json`. It does not install or configure Better Auth or Drizzle. With `-y`, the default setup remains selected unless `--better-auth-drizzle` is passed.
+Selecting **Better Auth + Drizzle** clones the `bauth-drizzle` branch with email/password, magic-link, Google and Discord sign-in, Postgres through Drizzle, and user/admin roles. The branch supplies `bunext.config.json`. The CLI copies `.env.example` to `.env.local` and generates a secret from 32 random bytes in base64, leaving an existing `.env.local` untouched.
+
+With `-y`, the default branch remains selected unless `--better-auth-drizzle` is passed.
+
+### Authentication
+
+After creating the auth variant:
+
+1. Add your Postgres `DATABASE_URL` to `.env.local`.
+2. Run `bun run setup` to prepare the database.
+3. Run `bun run dev`.
+
+Email/password works without provider keys. For Google or Discord sign-in, follow the generated project's README **Authentication** section to configure provider credentials and callback URLs. Optional email delivery and magic-link configuration are documented there too.
 
 > For the full help output:
 
