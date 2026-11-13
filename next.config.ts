@@ -11,13 +11,17 @@ const nextConfig: NextConfig = {
       { source: "/apple-touch-icon.png", destination: "/favicons/apple-touch-icon.png" },
     ];
   },
+  // keep the dev indicator clear of the header's account menu (top right)
+  devIndicators: { position: "bottom-right" },
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'v0.dev', pathname: '/placeholder.svg' },
     ],
   },
   compiler:
-    process.env.NODE_ENV === "production" ? { removeConsole: true } : {},
+    process.env.NODE_ENV === "production"
+      ? { removeConsole: { exclude: ["error", "warn"] } }
+      : {},
   // Log full absolute URLs for fetch requests (dev/build) — useful for debugging API calls
   logging: {
     fetches: {

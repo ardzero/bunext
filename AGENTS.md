@@ -41,3 +41,25 @@ Follow these rules when you write code:
 ## how to use reference github repo link
 
 When the user provides a GitHub repo link as a reference, you may clone it inside ./.temp/ without Git metadata so there's no Git conflict with the main repo. After cloning, thoroughly analyze the code, especially any code related to the user's request, but DO NOT TRY TO RUN THE CODE in it unless explicitly ordered by the user.
+
+## Auth and database (Better Auth + Drizzle)
+
+- Protected server code must check the session itself: call `requireSession()` or `requireRole(...)` from `@/lib/auth/session` in every protected page, layout, server action and route handler. Never rely on `src/proxy.ts`; it only checks that a cookie exists.
+- `<SignedIn>`, `<SignedOut>` and `<RoleGate>` only show or hide UI; they are not access control.
+- Redirect targets from the URL (`returnTo`) must go through `safeRedirect()` on the server before they are used.
+- Never hand-edit `src/lib/db/schema/auth.ts`. Change the Better Auth config, run `bun run auth:generate`, then `bun run db:generate`.
+- Domain tables go in `src/lib/db/schema/app.ts`; commit the generated migrations in `drizzle/`.
+- Only `src/lib/db/index.ts` imports the database driver (`postgres`). Everything else imports `db` from `@/lib/db` (`scripts/setup.ts` is the exception: it runs before the env is complete).
+- Read env through `@/lib/env` (zod-validated, server-only). Add new variables there and to `.env.example`.
+- Roles live in `src/lib/auth/roles.ts`; give a new role permissions in `rolePermissions` in `src/lib/auth/auth.ts`.
+- Auth UI lives in `src/components/auth` and follows the shadcn composition style: small parts, `data-slot`, `className` merged with `cn`, native props spread.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+## This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

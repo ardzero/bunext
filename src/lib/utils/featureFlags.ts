@@ -1,16 +1,22 @@
 import { murmurhash } from '@/lib/utils'
-import type { User, UserRole } from './user'
+import type { Role } from '@/lib/auth/roles'
+
+// the minimum a flag needs to know about the viewer
+export type FlagUser = {
+    id: string
+    role: Role
+}
 
 export type FeatureFlagName = keyof typeof FEATURE_FLAGS
 // type for multiple allowances
 type FeatureFlagRule = {
     percentageOfUsers?: number
-    userRoles?: UserRole[]
+    userRoles?: Role[]
 } & (
         | {
             percentageOfUsers: number
         }
-        | { userRoles: UserRole[] }
+        | { userRoles: Role[] }
     )
 
 export const FEATURE_FLAGS = {
@@ -22,21 +28,28 @@ export const FEATURE_FLAGS = {
     // 25% of users can see this feature
     SAMPLE_MULTIPLE_ALLOWANCES: [
         { percentageOfUsers: 0.25, userRoles: ['user'] },
-        { userRoles: ['admin', 'tester'] },
+        { userRoles: ['admin'] },
     ],
 } as const satisfies Record<string, FeatureFlagRule[] | boolean | string>
 
-export function canViewFeature(featureName: FeatureFlagName, user: User) {
+// true when the flag depends on who is viewing (role or percentage rules)
+export function isUserScopedFeature(featureName: FeatureFlagName) {
+    return Array.isArray(FEATURE_FLAGS[featureName])
+}
+
+// signed-out viewers (no user) never pass role or percentage rules
+export function canViewFeature(featureName: FeatureFlagName, user?: FlagUser | null) {
     const rules = FEATURE_FLAGS[featureName]
     if (typeof rules === 'boolean') return rules
     if (typeof rules === 'string') return rules
+    if (!user) return false
     return rules.some((rule) => checkRule(rule, featureName, user))
 }
 
 function checkRule(
     { userRoles, percentageOfUsers }: FeatureFlagRule,
     featureName: FeatureFlagName,
-    user: User
+    user: FlagUser
 ) {
     return (
         userHasValidRole(userRoles, user.role) &&
@@ -45,8 +58,8 @@ function checkRule(
 }
 
 function userHasValidRole(
-    allowedRoles: UserRole[] | undefined,
-    userRole: UserRole
+    allowedRoles: Role[] | undefined,
+    userRole: Role
 ) {
     return allowedRoles == null || allowedRoles.includes(userRole)
 }

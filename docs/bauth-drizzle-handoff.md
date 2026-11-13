@@ -265,4 +265,31 @@ Report honestly. A check that could not be run is reported as not run, with the 
 
 ## Pinned versions
 
-_Filled in during M0._
+Checked on 2026-11-13 against the installed packages (source and type definitions).
+
+| Package | Version |
+|---|---|
+| `better-auth` | 1.7.23 |
+| `auth` (Better Auth CLI, dev) | 1.7.23 |
+| `drizzle-orm` | 0.45.4 |
+| `drizzle-kit` (dev) | 0.31.11 |
+| `postgres` | 4.1.1 |
+| `zod` | 4.6.7 |
+| `resend` | 6.38.0 |
+| `server-only` | 0.0.1 |
+
+Corrected assumptions:
+
+- The Better Auth CLI is now the `auth` package (`@better-auth/cli` stopped at 1.4). It refuses configs that import `server-only`, so `auth:generate` runs it through `bun --conditions=react-server`.
+- `bun test` does not load `.env.local` (`NODE_ENV=test`), so the `test` script passes `--env-file=.env.local`. Scripts that import server code also run with `--conditions=react-server`.
+- `forgetPassword` was renamed to `requestPasswordReset`. `unlinkAccount` takes `{ accountId }`, which is the account row id from `listAccounts()` (not the provider id), needs a fresh session, and refuses the last account unless `allowUnlinkingAll` is set.
+- An expired, reused or invalid magic link redirects with `?error=INVALID_TOKEN`; there is no separate expired code. Tokens are single use, expire after 5 minutes by default (set to 10 here), use the `verification` table (no schema change), and new users get `name: ""` and `emailVerified: true`.
+- The admin plugin marks `role` as `input: false`. A sign-up carrying `role` is **rejected** with `400 FIELD_NOT_ALLOWED` rather than silently ignored. The test asserts that rejection, and that a plain sign-up gets `user`.
+- `forbidden()` still requires `experimental.authInterrupts` in Next.js 16.4, so `requireRole()` redirects to `/dashboard`.
+- `requireRole()` lives in `session.ts` next to `requireSession()`. `roles.ts` keeps the role list, `Role`, the default role and helpers. Putting `requireRole` in `roles.ts` would create an import cycle (`auth.ts` → `roles.ts` → `session.ts` → `auth.ts`) that crashes when a page imports `roles.ts` first. It also keeps `roles.ts` client-safe.
+- Implicit OAuth linking requires a verified provider email by default, and also `requireLocalEmailVerified` (default `true`). Without a real mailer, local users stay unverified, so signing in with Google using the same email is refused with `account_not_linked`. Linking from `/account` still works.
+- Magic link on an **unverified** user runs Better Auth's `revokeUnprovenAccountAccess`: it deletes that user's existing accounts (including the password) and sessions, then marks the email verified. This is deliberate protection against account pre-hijacking. Without a real mailer, password sign-ups stay unverified, so in development a password sign-up followed by a magic link removes the password. The account page then shows the "no password" note, and "Forgot password?" sets a new one. Verified users are not affected.
+- Tests never send real email: with `NODE_ENV=test` the console mailer is always used.
+- Rate limiting is enabled only in production by default (`rateLimit.enabled` defaults to `isProduction`).
+- Better Auth reads `BETTER_AUTH_SECRET` (or `AUTH_SECRET`) and `BETTER_AUTH_URL`. The names in section 6 are correct.
+
