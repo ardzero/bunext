@@ -15,6 +15,7 @@ const PATHS_TO_REMOVE: string[] = [
     "create-bunext",
     "packages",
     ".github/workflows",
+    "MAINTAINERS.md",
     "src/app/(index)/docs",
     "src/components/docs",
 ];
