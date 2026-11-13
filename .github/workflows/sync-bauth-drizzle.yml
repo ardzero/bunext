@@ -31,14 +31,20 @@ jobs:
             const base = "bauth-drizzle";
             const head = "main";
             const syncBranch = "sync/main-into-bauth-drizzle";
+            const { data: mainCommit } = await github.rest.repos.getCommit({
+              owner,
+              repo,
+              ref: head,
+            });
+            const commitTitle = mainCommit.commit.message.split(/\r?\n/, 1)[0];
 
             try {
               await github.rest.repos.merge({
                 owner,
                 repo,
                 base,
-                head,
-                commit_message: "chore: sync main into bauth-drizzle",
+                head: mainCommit.sha,
+                commit_message: `chore: sync main into bauth-drizzle: ${commitTitle}`,
               });
               core.info("Auth template is up to date with main.");
             } catch (error) {
@@ -56,12 +62,6 @@ jobs:
                 return;
               }
 
-              const { data: mainRef } = await github.rest.git.getRef({
-                owner,
-                repo,
-                ref: `heads/${head}`,
-              });
-
               // Only refresh the reserved sync branch when no PR is open.
               // Preserve any in-progress conflict resolutions on an open PR.
               try {
@@ -74,7 +74,7 @@ jobs:
                   owner,
                   repo,
                   ref: `heads/${syncBranch}`,
-                  sha: mainRef.object.sha,
+                  sha: mainCommit.sha,
                   force: true,
                 });
               } catch (refError) {
@@ -83,7 +83,7 @@ jobs:
                   owner,
                   repo,
                   ref: `refs/heads/${syncBranch}`,
-                  sha: mainRef.object.sha,
+                  sha: mainCommit.sha,
                 });
               }
 
