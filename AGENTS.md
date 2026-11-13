@@ -37,3 +37,7 @@ Follow these rules when you write code:
 - Use consts instead of functions, for example, “const toggle = () =>”. Also, define a type if possible.
 - when using react motion (formaly knows as framer motion), use this syntax to import it `import { motion } from "motion/react"`
 - NEVER FULLY REPLACE THE CSS in `global.css` I've custom things there if you need to change shadcn colors, or properties, change the variables, and for any custom css you may need, create a separte `custom.css` under /styles/ and import that in the layout (if it's not already created)
+
+## how to use reference github repo link
+
+When the user provides a GitHub repo link as a reference, you may clone it inside ./.temp/ without Git metadata so there's no Git conflict with the main repo. After cloning, thoroughly analyze the code, especially any code related to the user's request, but DO NOT TRY TO RUN THE CODE in it unless explicitly ordered by the user.
