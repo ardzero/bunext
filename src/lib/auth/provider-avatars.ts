@@ -67,25 +67,44 @@ type ProfileProvider = {
 
 const GOOGLE_USERINFO_URL = "https://openidconnect.googleapis.com/v1/userinfo";
 
+// sign-in awaits the avatar hooks, so a slow provider must not hold it up
+const PROVIDER_TIMEOUT_MS = 5000;
+
+const withTimeout = <T>(promise: Promise<T>) => {
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	const timeout = new Promise<never>((_, reject) => {
+		timer = setTimeout(
+			() => reject(new Error("Provider request timed out")),
+			PROVIDER_TIMEOUT_MS,
+		);
+	});
+	return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+};
+
 // Better Auth's Google provider only decodes the stored ID token, which keeps
 // returning the picture from sign-in time. Ask Google for the current one.
 const fetchGoogleImage = async (accessToken: string) => {
 	const response = await fetch(GOOGLE_USERINFO_URL, {
 		headers: { authorization: `Bearer ${accessToken}` },
 		cache: "no-store",
+		signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
 	});
-	if (!response.ok) return null;
+	// an expired or revoked token is a failure, not "no picture"
+	if (!response.ok) {
+		throw new Error(`Google userinfo responded ${response.status}`);
+	}
 	const profile = (await response.json()) as { picture?: string };
 	return profile.picture ?? null;
 };
 
-// The provider's current profile picture, or null when it has none.
+// The provider's current profile picture, or null when it has none. Throws
+// when the provider can't be reached or rejects the token.
 export const fetchProviderImage = async (
 	provider: ProfileProvider,
 	tokens: ProviderTokens,
 ) => {
 	if (provider.id === "google") return fetchGoogleImage(tokens.accessToken);
 
-	const info = await provider.getUserInfo(tokens);
+	const info = await withTimeout(provider.getUserInfo(tokens));
 	return info?.user.image ?? null;
 };

@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, spyOn, test } from "bun:test";
+import { afterAll, describe, expect, mock, spyOn, test } from "bun:test";
 import { inArray } from "drizzle-orm";
 
 // Integration test against DATABASE_URL (run `bun run setup` first).
@@ -186,17 +186,22 @@ describe.skipIf(!hasDatabase)("provider avatars", () => {
 		expect(await listProviderAvatars(user.id)).toEqual([]);
 	});
 
-	test("a failing avatar lookup on sign-in is swallowed", async () => {
-		const { captureMissingProviderAvatarAfterUpdate } = await loadDeps();
+	test("a failing avatar lookup on sign-in is logged and swallowed", async () => {
+		const { db, captureMissingProviderAvatarAfterUpdate } = await loadDeps();
 		const { context, user } = await createUser(null);
+		const selectSpy = spyOn(db, "select").mockImplementation(() => {
+			throw new Error("relation does not exist");
+		});
+		const logError = mock(() => {});
+		const ctx = {
+			context: { ...context, logger: { ...context.logger, error: logError } },
+		} as never;
 
-		// a user id the provider_avatar query rejects (not a string)
 		await expect(
-			captureMissingProviderAvatarAfterUpdate(
-				{ ...newAccount(user.id), userId: { bad: true } as never },
-				hookContext(context, async () => null),
-			),
+			captureMissingProviderAvatarAfterUpdate(newAccount(user.id), ctx),
 		).resolves.toBeUndefined();
+		expect(logError).toHaveBeenCalledTimes(1);
+		selectSpy.mockRestore();
 	});
 });
 
@@ -234,5 +239,20 @@ describe("fetchProviderImage", () => {
 		);
 
 		expect(imageUrl).toBe("https://img.test/discord.png");
+	});
+
+	test("an expired Google token is an error, not a missing picture", async () => {
+		const { fetchProviderImage } = await import("./provider-avatars");
+		const fetchSpy = spyOn(globalThis, "fetch").mockResolvedValue(
+			new Response(null, { status: 401 }),
+		);
+
+		await expect(
+			fetchProviderImage(
+				{ id: "google", getUserInfo: async () => null },
+				{ accessToken: "expired" },
+			),
+		).rejects.toThrow("401");
+		fetchSpy.mockRestore();
 	});
 });

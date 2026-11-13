@@ -301,8 +301,8 @@ Corrected assumptions:
   - `create.after` (`captureProviderAvatarAfterLink`): new sign-up or link saves the provider's picture, and fills `user.image` only when it is empty. A connected user keeps their current picture.
   - `update.after` (`captureMissingProviderAvatarAfterUpdate`): a sign-in with an already-linked provider saves the picture when none is stored yet (accounts linked before this table existed). Otherwise it does nothing; refreshing is manual.
   - `delete.after` (`forgetProviderAvatarAfterUnlink`): unlinking a provider deletes its saved picture.
-  - All three swallow and log errors, so a provider or database failure never breaks sign-in. They do add one provider request to a sign-in that captures a picture.
+  - All three swallow and log errors, so a provider or database failure never breaks sign-in. They do add one provider request (capped at 5 seconds) to a sign-in that captures a picture.
 - `fetchProviderImage` (`src/lib/auth/provider-avatars.ts`) asks Google's userinfo endpoint directly, because Better Auth's Google provider only decodes the stored ID token and would keep returning the picture from sign-in time. Other providers use their own `getUserInfo`.
-- Refresh gets a valid access token through `getAccessToken` (refreshing it when possible). Without a usable token (for example Google without a refresh token after an hour) it asks the user to reconnect the provider.
+- Refresh gets a valid access token through `getAccessToken` (refreshing it when possible). Without a usable token (for example Google without a refresh token after an hour) the provider rejects it and the user is asked to reconnect the provider.
 - Pictures are stored as the provider's image URL, not copied. If OAuth token encryption (`encryptOAuthTokens`) is ever turned on, the hooks must decrypt the access token first.
 
