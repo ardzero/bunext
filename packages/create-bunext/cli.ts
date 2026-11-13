@@ -16,6 +16,7 @@ const PATHS_TO_REMOVE: string[] = [
     "packages",
     ".github/workflows",
     "MAINTAINERS.md",
+    "docs/bauth-drizzle-handoff.md",
     "src/app/(index)/docs",
     "src/components/docs",
 ];
