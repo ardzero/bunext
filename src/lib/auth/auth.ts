@@ -11,6 +11,7 @@ import {
 import { db } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
 import { baseURL, env, isBuildPhase } from "@/lib/env";
+import { stripUnprovenAccessBeforeLink } from "./link-hooks";
 import { hasRealMailer, renderActionEmail, sendMail } from "./mailer";
 import { enabledProviderConfigs } from "./providers";
 import { ADMIN_ROLES, DEFAULT_ROLE, type Role } from "./roles";
@@ -103,11 +104,19 @@ export const auth = betterAuth({
 	account: {
 		accountLinking: {
 			enabled: true,
-			// implicit linking only happens when the provider reports a verified email
+			// No trusted providers: any provider links implicitly, but only when it
+			// reports a verified email (that is the proof of ownership).
 			trustedProviders: [],
+			// The local account may be unverified (no mailer, or verification still
+			// pending); the provider's verified email replaces that proof. The
+			// databaseHooks strip whatever an unproven account accrued first.
+			requireLocalEmailVerified: false,
 			// a signed-in user may link a provider account that uses another email
 			allowDifferentEmails: true,
 		},
+	},
+	databaseHooks: {
+		account: { create: { before: stripUnprovenAccessBeforeLink } },
 	},
 	rateLimit: {
 		storage: "database",

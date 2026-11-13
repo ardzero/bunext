@@ -55,6 +55,8 @@ Set them in `.env.local` locally and in your host's settings in production. `.en
 
 When a user whose email isn't verified yet signs in with a magic link, Better Auth removes the sign-in methods they added before proving the address (password, linked providers) and signs out their other sessions. This prevents account pre-hijacking. They can set a password again with "Forgot password?".
 
+Signing in with Google or Discord (or any provider that reports a verified email) using an address that already has an account signs in to that account and connects the provider automatically. If that account was never verified, its password, other linked providers and sessions are removed first, for the same reason. Without a mailer, "Forgot password?" can't restore the password afterwards; the user keeps access through the provider.
+
 Without a mailer, production still works: sign-up doesn't require verification, magic links are hidden, and the server logs a warning at startup.
 
 ## Authentication
