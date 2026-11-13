@@ -97,15 +97,20 @@ jobs:
           "
 
           echo "Waiting for create-bunext@$CB_VERSION to be available on npm..."
-          for i in {1..12}; do
+          for i in {1..60}; do
             FOUND=$(npm view "create-bunext@$CB_VERSION" version 2>/dev/null || echo "")
             if [ "$FOUND" = "$CB_VERSION" ]; then
               echo "Found on registry!"
               break
             fi
-            echo "Not yet available, retrying in 10s... ($i/12)"
+            echo "Not yet available, retrying in 10s... ($i/60)"
             sleep 10
           done
+
+          if [ "$FOUND" != "$CB_VERSION" ]; then
+            echo "create-bunext@$CB_VERSION is still processing on npm. Retry this workflow after it becomes available."
+            exit 1
+          fi
 
           bun install
           npm publish --provenance --access public
