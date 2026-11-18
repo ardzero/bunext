@@ -156,6 +156,16 @@ Preview deployments run as production, so they need the same variables as produc
 4. Deploy, then register the production callback URLs with Google and Discord.
 5. For production email (verification, password reset and magic links), verify a domain in Resend before setting `RESEND_API_KEY` and `MAIL_FROM`.
 
+### Before you deploy
+
+- **Don't paste `.env.local` into Vercel as-is.** Its `BETTER_AUTH_URL=http://localhost:3000` fails validation in production (https is required), so leave `BETTER_AUTH_URL` out. Your local `BETTER_AUTH_SECRET` is better replaced with a new one per environment, which `setup:vercel` does for you.
+- **Previews need the stable branch URL.** Without `BETTER_AUTH_URL`, previews use the branch URL (`https://<project>-git-<branch>-<team>.vercel.app`) for email links and OAuth callbacks. Open previews through that URL: on a per-deployment URL (`<project>-<hash>-<team>.vercel.app`), email and password sign-in works, but OAuth fails because the callback lands on the branch URL, which can't see the sign-in cookie.
+- **Register preview callbacks too.** Google and Discord only accept exact redirect URIs, so add `https://<branch url>/api/auth/callback/<provider>` (and, for Google, the branch URL as an authorized JavaScript origin) for every branch you test OAuth on.
+- **Deployment Protection.** Vercel puts a Vercel login in front of previews by default, so testers without access to your team are blocked. Turn it off for previews (Project → Settings → Deployment Protection), or share a link from the deployment's Share button.
+- **Resend's test sender only reaches you.** With `MAIL_FROM` set to `onboarding@resend.dev`, Resend only delivers to the email on your Resend account. Since sign-up requires email verification when a mailer is set, nobody else can finish signing up with a password, and password reset and magic links only work for you. Verify a domain in Resend before inviting testers, have them use Google or Discord, or set `ALLOW_NO_MAILER=true` (and leave the Resend variables out) to skip email entirely.
+- **Shared databases share users.** Pointing Preview at your local database is fine for a quick test, but production should have its own (a Neon branch works).
+- **Env changes need a new deployment.** Variables apply only to deployments built after the change, so redeploy after adding or editing them.
+
 ## Tech Stack
 
 - [Nextjs 16](https://nextjs.org/)

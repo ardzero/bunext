@@ -54,6 +54,17 @@ When the user provides a GitHub repo link as a reference, you may clone it insid
 - Roles live in `src/lib/auth/roles.ts`; give a new role permissions in `rolePermissions` in `src/lib/auth/auth.ts`.
 - Auth UI lives in `src/components/auth` and follows the shadcn composition style: small parts, `data-slot`, `className` merged with `cn`, native props spread.
 
+## Deploying (Vercel)
+
+The full guide is the "Deploying to Vercel" section of the project readme. When asked to deploy or set Vercel env:
+
+- Use `bun run setup:vercel` (interactive; needs the Vercel CLI). To set variables yourself use `vercel env add`, and never print secret values.
+- Set `BETTER_AUTH_SECRET`, `DATABASE_URL`, `DATABASE_URL_UNPOOLED`, and either `RESEND_API_KEY` + `MAIL_FROM` or `ALLOW_NO_MAILER=true`, for **both** Preview and Production (previews run with `NODE_ENV=production` and return 500 without them). Use a new secret per environment.
+- Leave `BETTER_AUTH_URL` unset on Vercel unless the canonical domain differs from the project's production domain; it must be https. Never copy `http://localhost:3000` from `.env.local`.
+- Migrate the target database before deploying: `DATABASE_URL_UNPOOLED="<direct url>" bun run db:migrate`.
+- Env changes only apply to new deployments; redeploy after changing them.
+- Tell the user what you can't do for them: register `https://<branch or production url>/api/auth/callback/<provider>` with each OAuth provider, turn off Deployment Protection for previews if outside testers need access, and verify a Resend domain (`onboarding@resend.dev` only delivers to the Resend account owner).
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 ## This is NOT the Next.js you know
