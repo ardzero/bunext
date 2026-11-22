@@ -1,0 +1,139 @@
+// Renovate config, run by .github/workflows/renovate.yml (self-hosted, free).
+// Docs: https://docs.renovatebot.com/configuration-options/
+{
+	$schema: "https://docs.renovatebot.com/renovate-schema.json",
+	extends: [
+		"config:recommended",
+		// pin actions to commit SHAs (supply-chain safety); Renovate keeps them fresh
+		"helpers:pinGitHubActionDigests",
+	],
+
+	// Add future template branches here, then give each one its own
+	// "branch-only dependencies" rule below.
+	baseBranchPatterns: ["main", "bauth-drizzle"],
+
+	timezone: "UTC",
+	labels: ["dependencies"],
+	// keep package.json ranges in sync with what is installed: the template's
+	// package.json is what scaffolded projects start from
+	rangeStrategy: "bump",
+	// wait for new releases to settle (pulled or compromised versions)
+	minimumReleaseAge: "3 days",
+	// security fixes from the OSV database, free and skip the waiting period
+	osvVulnerabilityAlerts: true,
+	// Renovate itself merges only when every check is green; GitHub's native
+	// auto-merge would merge without checks, since main has no branch protection
+	platformAutomerge: false,
+
+	lockFileMaintenance: {
+		enabled: true,
+		automerge: true,
+		schedule: ["* 0-5 1 * *"],
+	},
+
+	packageRules: [
+		// ── Grouping ────────────────────────────────────────────────
+		{
+			description: "Next.js and the packages released with it",
+			matchPackageNames: ["next", "eslint-config-next", "@next/**"],
+			groupName: "Next.js",
+		},
+		{
+			description: "React and its types",
+			matchPackageNames: [
+				"react",
+				"react-dom",
+				"@types/react",
+				"@types/react-dom",
+			],
+			groupName: "React",
+		},
+		{
+			description: "Tailwind CSS v4 packages",
+			matchPackageNames: ["tailwindcss", "@tailwindcss/**"],
+			groupName: "Tailwind CSS",
+		},
+		{
+			description: "Better Auth: runtime and CLI are pinned to the same version",
+			matchPackageNames: ["better-auth", "@better-auth/**", "auth"],
+			groupName: "Better Auth",
+		},
+		{
+			description: "Drizzle ORM and drizzle-kit",
+			matchPackageNames: ["drizzle-orm", "drizzle-kit"],
+			groupName: "Drizzle",
+		},
+
+		// ── Automerge ───────────────────────────────────────────────
+		{
+			description: "Automerge stable minor and patch updates once CI passes",
+			matchUpdateTypes: ["minor", "patch", "pin", "digest"],
+			matchCurrentVersion: "!/^v?0\\./",
+			automerge: true,
+		},
+		{
+			description: "0.x minors can break (semver), so only automerge their patches",
+			matchUpdateTypes: ["patch"],
+			matchCurrentVersion: "/^v?0\\./",
+			automerge: true,
+		},
+		{
+			description: "Majors always wait for a human",
+			matchUpdateTypes: ["major"],
+			automerge: false,
+			addLabels: ["major"],
+		},
+		{
+			description: "Next.js majors need codemods: notify the maintainer",
+			matchPackageNames: ["next", "eslint-config-next", "@next/**"],
+			matchUpdateTypes: ["major"],
+			automerge: false,
+			addLabels: ["nextjs-major"],
+			assignees: ["ardzero"],
+			reviewers: ["ardzero"],
+			prBodyNotes: [
+				"> [!IMPORTANT]\n> **Next.js major update — not automerged.** Check out this branch, run `bunx @next/codemod@latest upgrade`, follow the [upgrade guide](https://nextjs.org/docs/app/guides/upgrading), then verify `bun run build` before merging. Merging into `main` syncs it into `bauth-drizzle`.",
+			],
+		},
+
+		// ── Branch ownership ────────────────────────────────────────
+		// main owns every shared dependency; the sync workflow carries those
+		// updates into the other branches. Updating them there too would open
+		// duplicate PRs and conflict with the sync.
+		{
+			description: "Non-main branches only get their own dependencies",
+			matchBaseBranches: ["!main"],
+			enabled: false,
+		},
+		{
+			description: "bauth-drizzle: branch-only dependencies (keep in sync with its package.json)",
+			matchBaseBranches: ["bauth-drizzle"],
+			matchPackageNames: [
+				"better-auth",
+				"@better-auth/**",
+				"auth",
+				"drizzle-orm",
+				"drizzle-kit",
+				"postgres",
+				"resend",
+				"zod",
+				"server-only",
+			],
+			enabled: true,
+		},
+		{
+			description: "Lockfile refreshes happen on main only and reach other branches through the sync",
+			matchBaseBranches: ["!main"],
+			matchUpdateTypes: ["lockFileMaintenance"],
+			enabled: false,
+		},
+
+		// ── Exclusions ──────────────────────────────────────────────
+		{
+			description: "The publish workflow sets the wrapper's create-bunext range on release",
+			matchFileNames: ["packages/bunext-wrapper/package.json"],
+			matchPackageNames: ["create-bunext"],
+			enabled: false,
+		},
+	],
+}

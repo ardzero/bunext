@@ -1,0 +1,68 @@
+name: Renovate
+
+# Self-hosted Renovate on free GitHub Actions minutes (public repo).
+# Repo config lives in .github/renovate.json5.
+# Setup (one time): see "Dependency updates (Renovate)" in MAINTAINERS.md.
+
+on:
+  schedule:
+    # every 6 hours; Renovate also merges green PRs on these runs
+    - cron: "17 */6 * * *"
+  # merge a Renovate PR as soon as its CI finishes, instead of waiting a run
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+  # react to your checkbox clicks in the Dependency Dashboard issue
+  # (Renovate's own edits are filtered out below to avoid a loop)
+  issues:
+    types: [edited]
+  # rerun right after the config changes
+  push:
+    branches: [main]
+    paths:
+      - ".github/renovate.json5"
+      - ".github/workflows/renovate.yml"
+  workflow_dispatch:
+    inputs:
+      logLevel:
+        description: Renovate log level
+        type: choice
+        options: [info, debug]
+        default: info
+
+permissions:
+  contents: read
+
+concurrency:
+  group: renovate
+  cancel-in-progress: false
+
+jobs:
+  renovate:
+    if: >-
+      (github.event_name != 'workflow_run' || startsWith(github.event.workflow_run.head_branch, 'renovate/'))
+      && (github.event_name != 'issues' || (github.event.issue.title == 'Dependency Dashboard' && github.event.sender.type == 'User'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      # A GitHub App token (not GITHUB_TOKEN) so Renovate's PRs trigger CI and
+      # its assignments/review requests notify you
+      - name: Create GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+        with:
+          client-id: ${{ vars.RENOVATE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
+
+      - name: Run Renovate
+        uses: renovatebot/github-action@acdd6bda8b035c99ce59d5675816af2aa65a1774 # v46.3.14
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+        env:
+          RENOVATE_REPOSITORIES: ${{ github.repository }}
+          # the repo already has a config, so skip the onboarding PR
+          RENOVATE_ONBOARDING: "false"
+          RENOVATE_REQUIRE_CONFIG: required
+          # commits through the GitHub API: signed and attributed to the app
+          RENOVATE_PLATFORM_COMMIT: enabled
+          LOG_LEVEL: ${{ inputs.logLevel || 'info' }}
