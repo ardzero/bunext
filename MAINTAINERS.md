@@ -1,6 +1,8 @@
 # Auth template sync
 
-Resolve conflicts on `sync/main-into-bauth-drizzle`, preserving template updates and auth changes, then merge its PR into `bauth-drizzle`; never commit resolutions to `main` or publish from sync/auth branches.
+Conflicts only in `package.json`/`bun.lock` (e.g. a Renovate bump next to an auth-only dependency) are resolved automatically: a three-way merge of `package.json` (`.github/scripts/merge-package-json.ts`), then `bun install --lockfile-only`. CI re-checks `bauth-drizzle` after every sync and emails you if it fails. A sync PR opens only when another file conflicts or both branches changed the same value.
+
+Otherwise, resolve conflicts on `sync/main-into-bauth-drizzle`, preserving template updates and auth changes, then merge its PR into `bauth-drizzle`; never commit resolutions to `main` or publish from sync/auth branches.
 Automation preserves open PR resolution work and picks up later `main` updates on the next sync after merging; it runs on main pushes, after publishing, daily, or manually.
 
 # Dependency updates (Renovate)

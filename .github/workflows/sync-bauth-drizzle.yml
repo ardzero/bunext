@@ -24,6 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Merge main into auth template
+        id: merge
         uses: actions/github-script@v7
         with:
           script: |
@@ -37,6 +38,8 @@ jobs:
               ref: head,
             });
             const commitTitle = mainCommit.commit.message.split(/\r?\n/, 1)[0];
+            core.setOutput("main_sha", mainCommit.sha);
+            core.setOutput("commit_title", commitTitle);
 
             try {
               await github.rest.repos.merge({
@@ -47,6 +50,7 @@ jobs:
                 commit_message: `chore: sync main into bauth-drizzle: ${commitTitle}`,
               });
               core.info("Auth template is up to date with main.");
+              core.setOutput("result", "merged");
             } catch (error) {
               if (error.status !== 409) throw error;
 
@@ -59,41 +63,128 @@ jobs:
               });
               if (existing.length > 0) {
                 core.warning(`Resolve sync conflicts in ${existing[0].html_url}`);
+                core.setOutput("result", "pr-open");
                 return;
               }
+              core.setOutput("result", "conflict");
+            }
 
-              // Only refresh the reserved sync branch when no PR is open.
-              // Preserve any in-progress conflict resolutions on an open PR.
-              try {
-                await github.rest.git.getRef({
-                  owner,
-                  repo,
-                  ref: `heads/${syncBranch}`,
-                });
-                await github.rest.git.updateRef({
-                  owner,
-                  repo,
-                  ref: `heads/${syncBranch}`,
-                  sha: mainCommit.sha,
-                  force: true,
-                });
-              } catch (refError) {
-                if (refError.status !== 404) throw refError;
-                await github.rest.git.createRef({
-                  owner,
-                  repo,
-                  ref: `refs/heads/${syncBranch}`,
-                  sha: mainCommit.sha,
-                });
-              }
+      # Conflicts limited to package.json/bun.lock (e.g. a Renovate bump next
+      # to an auth-only dependency) are resolved here; anything else, or the
+      # same value changed on both sides, falls through to a sync PR.
+      - name: Checkout auth template
+        if: steps.merge.outputs.result == 'conflict'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: bauth-drizzle
+          fetch-depth: 0
 
-              const { data: pull } = await github.rest.pulls.create({
+      - name: Setup Bun
+        if: steps.merge.outputs.result == 'conflict'
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+
+      - name: Resolve dependency-only conflicts
+        id: resolve
+        if: steps.merge.outputs.result == 'conflict'
+        continue-on-error: true
+        env:
+          MAIN_SHA: ${{ steps.merge.outputs.main_sha }}
+          COMMIT_TITLE: ${{ steps.merge.outputs.commit_title }}
+        run: |
+          set -euo pipefail
+          resolved=false
+          trap 'echo "resolved=$resolved" >> "$GITHUB_OUTPUT"' EXIT
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # the merge script lives on main; bauth-drizzle may hold an older copy
+          merge_script="$RUNNER_TEMP/merge-package-json.ts"
+          git show "$MAIN_SHA:.github/scripts/merge-package-json.ts" > "$merge_script"
+
+          if git merge --no-ff -m "chore: sync main into bauth-drizzle: $COMMIT_TITLE" "$MAIN_SHA"; then
+            git push origin HEAD:bauth-drizzle
+            resolved=true
+            exit 0
+          fi
+
+          conflicts=$(git diff --name-only --diff-filter=U)
+          echo "Conflicted files:"
+          echo "$conflicts"
+          for file in $conflicts; do
+            if [ "$file" != "package.json" ] && [ "$file" != "bun.lock" ]; then
+              echo "::notice::$file needs a manual resolution"
+              git merge --abort
+              exit 0
+            fi
+          done
+
+          if grep -qx "package.json" <<< "$conflicts"; then
+            git show :1:package.json > "$RUNNER_TEMP/base.json"
+            git show :2:package.json > "$RUNNER_TEMP/ours.json"
+            git show :3:package.json > "$RUNNER_TEMP/theirs.json"
+            # run from RUNNER_TEMP so bun doesn't read the conflicted package.json
+            if ! bun --cwd "$RUNNER_TEMP" "$merge_script" "$RUNNER_TEMP/base.json" "$RUNNER_TEMP/ours.json" "$RUNNER_TEMP/theirs.json" "$PWD/package.json"; then
+              git merge --abort
+              exit 0
+            fi
+          fi
+
+          # regenerate the lockfile from the merged package.json, starting
+          # from bauth-drizzle's copy so its auth/db packages keep their versions
+          if grep -qx "bun.lock" <<< "$conflicts"; then
+            git checkout --ours -- bun.lock
+          fi
+          bun install --lockfile-only --ignore-scripts
+
+          git add package.json bun.lock
+          git commit --no-edit
+          git push origin HEAD:bauth-drizzle
+          resolved=true
+          echo "::notice::Resolved dependency-only sync conflicts automatically"
+
+      - name: Open a sync PR for manual resolution
+        if: steps.merge.outputs.result == 'conflict' && steps.resolve.outputs.resolved != 'true'
+        uses: actions/github-script@v7
+        env:
+          MAIN_SHA: ${{ steps.merge.outputs.main_sha }}
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const base = "bauth-drizzle";
+            const syncBranch = "sync/main-into-bauth-drizzle";
+            const mainSha = process.env.MAIN_SHA;
+
+            // Only refresh the reserved sync branch when no PR is open.
+            // Preserve any in-progress conflict resolutions on an open PR.
+            try {
+              await github.rest.git.getRef({
                 owner,
                 repo,
-                base,
-                head: syncBranch,
-                title: "chore: resolve main sync into bauth-drizzle",
-                body: "Automatic synchronization encountered merge conflicts. Resolve the conflicts on this dedicated sync branch and merge this PR into bauth-drizzle. Keep main unchanged. Further main updates will be picked up by the next sync after this PR is merged.",
+                ref: `heads/${syncBranch}`,
               });
-              core.warning(`Resolve sync conflicts in ${pull.html_url}`);
+              await github.rest.git.updateRef({
+                owner,
+                repo,
+                ref: `heads/${syncBranch}`,
+                sha: mainSha,
+                force: true,
+              });
+            } catch (refError) {
+              if (refError.status !== 404) throw refError;
+              await github.rest.git.createRef({
+                owner,
+                repo,
+                ref: `refs/heads/${syncBranch}`,
+                sha: mainSha,
+              });
             }
+
+            const { data: pull } = await github.rest.pulls.create({
+              owner,
+              repo,
+              base,
+              head: syncBranch,
+              title: "chore: resolve main sync into bauth-drizzle",
+              body: "Automatic synchronization encountered merge conflicts. Resolve the conflicts on this dedicated sync branch and merge this PR into bauth-drizzle. Keep main unchanged. Further main updates will be picked up by the next sync after this PR is merged.",
+            });
+            core.warning(`Resolve sync conflicts in ${pull.html_url}`);
