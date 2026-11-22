@@ -1,0 +1,105 @@
+name: CI
+
+# Gates Renovate automerge (and any PR) on lint, typecheck, build and tests.
+# Free on public repos. Shared by every template branch: steps that only apply
+# to bauth-drizzle (migrations, tests) are skipped where their files are missing.
+
+on:
+  pull_request:
+    branches: [main, bauth-drizzle]
+  push:
+    branches: [main, bauth-drizzle]
+  # the sync pushes with GITHUB_TOKEN, which never triggers CI, so check the
+  # synced bauth-drizzle head once the sync finishes
+  workflow_run:
+    workflows: [Sync auth template]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  app:
+    name: App (lint, typecheck, build, test)
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      # throwaway database for bauth-drizzle's migrations and integration tests
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: bunext
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/bunext
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && 'bauth-drizzle' || '' }}
+          persist-credentials: false
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Build
+        run: bun run build
+
+      - name: Migrate database
+        if: hashFiles('drizzle.config.ts') != ''
+        run: bun run db:migrate
+
+      - name: Test
+        if: hashFiles('src/**/*.test.ts', 'src/**/*.test.tsx') != ''
+        run: bun run test
+
+  packages:
+    name: CLI package (${{ matrix.package }})
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [create-bunext, bunextupgrade]
+    defaults:
+      run:
+        working-directory: packages/${{ matrix.package }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && 'bauth-drizzle' || '' }}
+          persist-credentials: false
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      - name: Build
+        run: bun run build
