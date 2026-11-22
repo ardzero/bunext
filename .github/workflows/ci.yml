@@ -45,6 +45,9 @@ jobs:
           --health-retries 10
     env:
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/bunext
+      # test-only values for bauth-drizzle (see its .env.example); not secrets
+      BETTER_AUTH_URL: http://localhost:3000
+      BETTER_AUTH_SECRET: ci-only-better-auth-secret-not-used-anywhere
       NEXT_TELEMETRY_DISABLED: "1"
     steps:
       - name: Checkout
