@@ -33,15 +33,15 @@ The base must stay small and product-neutral. If something is not listed in sect
 | Driver | `postgres` (postgres.js) with `prepare: false`, in one file. No driver switch |
 | Roles | Better Auth admin plugin, roles `user` (default) and `admin`, defined in `roles.ts` |
 | Account linking | On. A signed-in user can link Google or Discord; automatic linking only when the provider reports a verified email |
-| Email verification | Required only when a real mailer is configured. Without one, sign-up works unverified and production logs a warning |
+| Email verification | Required only when a real mailer is configured. Production needs one unless `ALLOW_NO_MAILER=true`; then sign-up works unverified and password reset is off |
 | Magic link | Better Auth magic-link plugin, offered on the sign-in page as an alternative to the password. Available in development (console mailer) and in production only when a real mailer is configured; otherwise the option is not rendered. An unknown email creates an account, as with social sign-in |
 | Mail | `mailer.ts` interface, console mailer for dev, Resend adapter enabled by `RESEND_API_KEY` |
 | Route protection | `proxy.ts` does a cookie-presence check only. Real checks happen in server code through `requireSession()` and `requireRole()` |
 | Providers | One env-gated list in `providers.ts`, shared by server config and UI |
-| Base URL | `BETTER_AUTH_URL`; on Vercel previews fall back to `https://${VERCEL_URL}` |
+| Base URL | `BETTER_AUTH_URL`, required in production; on Vercel falls back to `VERCEL_PROJECT_PRODUCTION_URL` (production) or `VERCEL_BRANCH_URL` / `VERCEL_URL` (previews), which are also trusted origins |
 | Rate limiting | Stored in the database |
 | CLI flag | Keep `--better-auth-drizzle`. `-y` keeps the base template |
-| Tests | `bun test` |
+| Tests | `bun run test` |
 | Auth UI | Built on the existing shadcn primitives in `src/components/ui`. Behavior follows Clerk's prebuilt components; component API follows shadcn's composition style. See M5 |
 | URL state | `returnTo` is read and sanitized on the server. `nuqs` is available for client URL state (for example the active account section) but is never the source of a redirect target |
 
@@ -61,7 +61,7 @@ You do not deploy, publish, push or create provider apps. Those are in section 8
 
 Work on a branch `feat/auth-base` created from `bauth-drizzle`. Commit at the end of each milestone. Do not push. Do not touch `packages/` on this branch.
 
-Every milestone ends with `bun run typecheck`, `bun run lint`, `bun run build` and `bun test` passing.
+Every milestone ends with `bun run typecheck`, `bun run lint`, `bun run build` and `bun run test` passing.
 
 ### M0: Pins and doc check
 
@@ -86,7 +86,7 @@ If the docs contradict a decision in section 3, stop and report rather than impr
 ### M2: Database
 
 - `src/lib/db/index.ts`: the only file that imports the driver. Reads `DATABASE_URL`, creates the postgres.js client with `prepare: false`, wraps it in Drizzle, and keeps a `globalThis` singleton in development.
-- `src/lib/db/schema/auth.ts` (generated in M3), `schema/app.ts` (empty apart from a short comment showing where domain tables go), `schema/index.ts`.
+- `src/lib/db/schema/auth.ts` (generated in M3), `schema/app.ts` (domain tables; holds `provider_avatar`, see Profile pictures below), `schema/index.ts`.
 - `drizzle.config.ts`: uses `DATABASE_URL_UNPOOLED`, falling back to `DATABASE_URL`.
 - No provider-specific features in the schema.
 
@@ -111,7 +111,7 @@ Done when: sign-up, sign-in, session read and sign-out work through the API on l
 - `src/lib/auth/safe-redirect.ts`: `safeRedirect(value, fallback = "/dashboard")` returns the value only when it is a relative same-origin path. Reject absolute URLs, `//`, backslashes, encoded variants, control characters and `javascript:`.
 - `scripts/seed-admin.ts`: promotes the existing user whose email equals `ADMIN_EMAIL` to `admin`. If no such user exists, print "sign up first" and exit non-zero.
 
-Tests (`bun test`):
+Tests (`bun run test`):
 - `safe-redirect`: at least ten hostile payloads rejected, three valid paths accepted.
 - `providers`: a provider with one missing env var is disabled.
 - Integration, against `DATABASE_URL`: a sign-up request carrying `role: "admin"` produces a `user`. Clean up the test user afterwards.
@@ -176,6 +176,7 @@ Account page sections (each a `Card`, composed by the page):
 |---|---|
 | `ProfileForm` | Update display name; email shown read-only with a verified/unverified badge |
 | `ChangePasswordForm` | Current, new and confirm password; signs out other sessions on success; rendered only when the user has a password credential (users who only ever signed in with a provider or a magic link see a short note instead) |
+| `ProfilePicture` | One row per connected provider with its saved picture; "Use" makes it the profile picture, "Refresh" ("Fetch" when none is saved) pulls the latest one from the provider. Server actions in `src/actions/provider-avatar.ts` |
 | `ConnectedAccounts` | One row per enabled provider with linked state and link/unlink actions; refuses to unlink the last remaining sign-in method; shows link errors through `AuthError` |
 | `ActiveSessions` | Lists sessions with device and last-active, marks the current one, revokes others individually |
 
@@ -228,17 +229,17 @@ Confirm the Better Auth names in M0. Callback URLs are `/api/auth/callback/googl
 
 ## 7. Acceptance checks (run locally, report each result)
 
-1. `bun install`, `typecheck`, `lint`, `build` and `bun test` pass on `feat/auth-base`. `bun run build` also passes under Node (`npm run build`).
+1. `bun install`, `typecheck`, `lint`, `build` and `bun run test` pass on `feat/auth-base`. `bun run build` also passes under Node (`npm run build`).
 2. With only `BETTER_AUTH_SECRET` and `DATABASE_URL` set: sign-up, sign-out and sign-in work; no social buttons are shown.
 3. `/dashboard` without a session redirects to `/sign-in?returnTo=/dashboard`, and signing in returns there.
 4. `/sign-in?returnTo=https://evil.example` lands on `/dashboard` after sign-in.
 5. With the session cookie replaced by a garbage value, `/dashboard` still redirects (this proves the server check, not the proxy, protects it).
 6. A `user` is refused on `/admin`; after `bun run seed:admin`, the same account gets in.
 7. Forgot-password and reset work end to end using the link printed by the console mailer.
-8. `NODE_ENV=production bun run start` without `BETTER_AUTH_SECRET` fails with a clear error; with it but without a mailer, it starts and logs the warning.
+8. `NODE_ENV=production bun run start` without `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` or a mailer fails with a clear error; with `ALLOW_NO_MAILER=true` it starts, logs the warning, and hides magic links and forgot-password.
 9. If social keys were provided: sign-in works and a signed-in email user can link the provider on `/account`. If not, state that this was not tested.
 9a. Switching from sign-in to sign-up and back keeps `returnTo`. Wrong-password and unknown-email attempts show the same message. An expired or reused reset link shows the recovery state, not a crash.
-9b. On `/account`: name update, password change and revoking another session work; the last sign-in method cannot be unlinked.
+9b. On `/account`: switching and refreshing the profile picture per provider, name update, password change and revoking another session work; the last sign-in method cannot be unlinked.
 9c. Every auth form is usable by keyboard alone and renders correctly in light and dark at 320px width.
 9d. Magic link: requesting one prints the link through the console mailer; opening it signs in and lands on `returnTo`; opening it a second time shows the expired-link state. With `NODE_ENV=production` and no real mailer, the option is not rendered.
 10. `bun run setup` works on a copy of the project with no `.env.local`, and is harmless when run twice.
@@ -265,4 +266,44 @@ Report honestly. A check that could not be run is reported as not run, with the 
 
 ## Pinned versions
 
-_Filled in during M0._
+Checked on 2026-11-13 against the installed packages (source and type definitions).
+
+| Package | Version |
+|---|---|
+| `better-auth` | 1.7.23 |
+| `auth` (Better Auth CLI, dev) | 1.7.23 |
+| `drizzle-orm` | 0.45.4 |
+| `drizzle-kit` (dev) | 0.31.11 |
+| `postgres` | 4.1.1 |
+| `zod` | 4.6.7 |
+| `resend` | 6.38.0 |
+| `server-only` | 0.0.1 |
+
+Corrected assumptions:
+
+- The Better Auth CLI is now the `auth` package (`@better-auth/cli` stopped at 1.4). It refuses configs that import `server-only`, so `auth:generate` runs it through `bun --conditions=react-server`.
+- `bun test` does not load `.env.local` (`NODE_ENV=test`), so the `test` script passes `--env-file=.env.local`. Scripts that import server code also run with `--conditions=react-server`.
+- `forgetPassword` was renamed to `requestPasswordReset`. `unlinkAccount` takes `{ accountId }`, which is the account row id from `listAccounts()` (not the provider id), needs a fresh session, and refuses the last account unless `allowUnlinkingAll` is set.
+- An expired, reused or invalid magic link redirects with `?error=INVALID_TOKEN`; there is no separate expired code. Tokens are single use, expire after 5 minutes by default (set to 10 here), use the `verification` table (no schema change), and new users get `name: ""` and `emailVerified: true`.
+- The admin plugin marks `role` as `input: false`. A sign-up carrying `role` is **rejected** with `400 FIELD_NOT_ALLOWED` rather than silently ignored. The test asserts that rejection, and that a plain sign-up gets `user`.
+- `forbidden()` still requires `experimental.authInterrupts` in Next.js 16.4, so `requireRole()` redirects to `/dashboard`.
+- `requireRole()` lives in `session.ts` next to `requireSession()`. `roles.ts` keeps the role list, `Role`, the default role and helpers. Putting `requireRole` in `roles.ts` would create an import cycle (`auth.ts` → `roles.ts` → `session.ts` → `auth.ts`) that crashes when a page imports `roles.ts` first. It also keeps `roles.ts` client-safe.
+- Implicit OAuth linking requires a verified provider email by default, and also `requireLocalEmailVerified` (default `true`). Without a real mailer, local users stay unverified, so signing in with Google using the same email is refused with `account_not_linked`. Linking from `/account` still works.
+- Magic link on an **unverified** user runs Better Auth's `revokeUnprovenAccountAccess`: it deletes that user's existing accounts (including the password) and sessions, then marks the email verified. This is deliberate protection against account pre-hijacking. Without a real mailer, password sign-ups stay unverified, so in development a password sign-up followed by a magic link removes the password. The account page then shows the "no password" note, and "Forgot password?" sets a new one. Verified users are not affected.
+- Tests never send real email: with `NODE_ENV=test` the console mailer is always used.
+- Security audit follow-ups: production never uses the console mailer (logged reset links would hand accounts to log readers); without a mailer it refuses to start unless `ALLOW_NO_MAILER=true`, which turns off password reset (`sendResetPassword` unset, the token endpoints refused in `hooks.before`, pages 404) and magic links. Magic-link tokens use `storeToken: "hashed"`. `hooks.before` caps the mail-sending endpoints at 5 emails per address per 15 minutes in production (`src/lib/auth/rate-limit.ts`, rows in the `email_rate_limit` domain table, since Better Auth prunes its own `rate_limit` rows after its shortest windows), because Better Auth's limiter keys on IP only. Password attempts on `/sign-in/email` use separate buckets (5 per address and IP; 20 per address) so guessing can't block recovery mail; the `sendOnSignIn` verification resend counts against the mail quota inside `sendVerificationEmail` and is skipped, not refused, when it's used up. `BETTER_AUTH_URL` must be https in production (loopback http allowed), since Better Auth only sets Secure cookies for an https base URL. The admin role is limited to `user: list, get, ban` and `session: list, revoke`. Security headers live in `next.config.ts`; a full CSP is not set yet.
+- Rate limiting is enabled only in production by default (`rateLimit.enabled` defaults to `isProduction`).
+- Better Auth reads `BETTER_AUTH_SECRET` (or `AUTH_SECRET`) and `BETTER_AUTH_URL`. The names in section 6 are correct.
+
+### Profile pictures
+
+- Better Auth keeps one `user.image`. `provider_avatar` (`src/lib/db/schema/app.ts`, migration `drizzle/0001_*`) stores the latest picture per user and provider: unique on (`user_id`, `provider_id`), cascades with the user.
+- Hooks in `src/lib/auth/link-hooks.ts`, wired in `databaseHooks.account`:
+  - `create.after` (`captureProviderAvatarAfterLink`): new sign-up or link saves the provider's picture, and fills `user.image` only when it is empty. A connected user keeps their current picture.
+  - `update.after` (`captureMissingProviderAvatarAfterUpdate`): a sign-in with an already-linked provider saves the picture when none is stored yet (accounts linked before this table existed). Otherwise it does nothing; refreshing is manual.
+  - `delete.after` (`forgetProviderAvatarAfterUnlink`): unlinking a provider deletes its saved picture.
+  - All three swallow and log errors, so a provider or database failure never breaks sign-in. They do add one provider request (capped at 5 seconds) to a sign-in that captures a picture.
+- `fetchProviderImage` (`src/lib/auth/provider-avatars.ts`) asks Google's userinfo endpoint directly, because Better Auth's Google provider only decodes the stored ID token and would keep returning the picture from sign-in time. Other providers use their own `getUserInfo`.
+- Refresh gets a valid access token through `getAccessToken` (refreshing it when possible). Without a usable token (for example Google without a refresh token after an hour) the provider rejects it and the user is asked to reconnect the provider.
+- Pictures are stored as the provider's image URL, not copied. `encryptOAuthTokens` is on, so the link hooks decrypt the access token with `decryptOAuthToken` (database hooks see the stored, encrypted row). `/get-access-token`, `/refresh-token` and `/account-info` are in `disabledPaths`; that only blocks the HTTP routes, so server-side `auth.api.getAccessToken` still works. Tokens stored before stay readable as plaintext until the next sign-in or refresh rewrites them encrypted. ID tokens are not encrypted by Better Auth.
+
