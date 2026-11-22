@@ -67,8 +67,14 @@
 		// ── Automerge ───────────────────────────────────────────────
 		{
 			description: "Automerge stable minor and patch updates once CI passes",
-			matchUpdateTypes: ["minor", "patch", "pin", "digest"],
+			matchUpdateTypes: ["minor", "patch", "digest"],
 			matchCurrentVersion: "!/^v?0\\./",
+			automerge: true,
+		},
+		{
+			description: "Pins don't change the running version: automerge, no release-age wait",
+			matchUpdateTypes: ["pin", "pinDigest"],
+			minimumReleaseAge: null,
 			automerge: true,
 		},
 		{
