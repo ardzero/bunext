@@ -31,7 +31,6 @@ jobs:
             const { owner, repo } = context.repo;
             const base = "bauth-drizzle";
             const head = "main";
-            const syncBranch = "sync/main-into-bauth-drizzle";
             const { data: mainCommit } = await github.rest.repos.getCommit({
               owner,
               repo,
@@ -152,7 +151,7 @@ jobs:
             const { owner, repo } = context.repo;
             const title = "Sync main into bauth-drizzle needs manual resolution";
             const issues = await github.paginate(github.rest.issues.listForRepo, {
-              owner, repo, state: "open", creator: "github-actions[bot]", per_page: 100,
+              owner, repo, state: "open", per_page: 100,
             });
             const tracking = issues.filter(issue => !issue.pull_request && issue.title === title);
             if (process.env.MERGE_OUTCOME === "merged" || process.env.RESOLVED === "true") {
