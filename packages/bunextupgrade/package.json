@@ -44,7 +44,7 @@
 		"boilerplate"
 	],
 	"devDependencies": {
-		"@types/bun": "^1.4.4",
+		"@types/bun": "^1.4.5",
 		"@clack/prompts": "^1.9.0",
 		"@types/node": "^26.6.6",
 		"@types/yargs": "^17.0.35",
