@@ -33,7 +33,7 @@ The CLI will guide you through:
 3. **Install dependencies?** (yes/no)
 4. **Initialize git repository?** (yes/no)
 5. **Connect to a remote repository?** (GitHub/GitLab, optional)
-6. **Open in editor?** (Cursor / VS Code / Skip)
+6. **Open in editor?** (Cursor / VS Code / T3 Code / Skip)
 
 You can also target the **current directory**:
 
@@ -52,6 +52,7 @@ bun create bunext my-app -y
 # Open in editor after creation
 bun create bunext my-app --cursor
 bun create bunext my-app --vscode
+bun create bunext my-app --t3
 
 # Create with Better Auth + Drizzle
 bun create bunext my-app --better-auth-drizzle
@@ -77,6 +78,7 @@ bun create bunext my-app -y --cursor
 | `--better-auth-drizzle`      | Create with Better Auth + Drizzle                 |
 | `--cursor`                   | Open project in Cursor after creation                      |
 | `--vscode`                   | Open project in VS Code after creation                     |
+| `--t3`                       | Open project in T3 Code after creation                     |
 | `-h`, `--help`               | Show help message with examples                            |
 | `-v`, `--version`            | Show CLI version                                           |
 
@@ -109,7 +111,7 @@ bun create bunext --help
   json` name.
 - 🛡️ **Graceful error handling** – Friendly messages for network issues, permission problems, git config issues, etc.
 - 🔗 **Git & remote integration** – Can init git, add a remote (GitHub/GitLab), and optionally push on first run.
-- 🎯 **Editor integration** – One-click open in Cursor or VS Code (via `cursor` / `code` CLIs).
+- 🎯 **Editor integration** – One-click open in Cursor, VS Code, or T3 Code (via `cursor` / `code` / `t3 app` CLIs).
 
 ## Troubleshooting
 
@@ -161,8 +163,9 @@ Make sure the CLI launchers are installed:
 
 - **VS Code**: Install the `code` command via Command Palette → “Shell Command: Install 'code' command in PATH”
 - **Cursor**: Install the `cursor` command from Cursor settings
+- **T3 Code**: Open the T3 Code desktop app once to install the `t3` command; `t3 app` opens the project in the running app
 
-If the editor CLI isn’t found, the tool will just print how to `cd` into the project and open it manually.
+If the editor fails to open, the CLI explains why (e.g. the `code` / `cursor` / `t3` command isn’t in your PATH), how to install the launcher on your OS, and the exact command to open the project manually.
 
 ### Current Directory Not Empty
 
