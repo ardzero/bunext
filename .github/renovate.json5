@@ -1,33 +1,17 @@
-// Renovate config, run by .github/workflows/renovate.yml (self-hosted, free).
+// Renovate config. Runs as the Sora GitHub App from ardzero/sora-renovate
+// (self-hosted, free), which also holds the shared base preset.
 // Docs: https://docs.renovatebot.com/configuration-options/
 {
 	$schema: "https://docs.renovatebot.com/renovate-schema.json",
-	extends: [
-		"config:recommended",
-		// pin actions to commit SHAs (supply-chain safety); Renovate keeps them fresh
-		"helpers:pinGitHubActionDigests",
-	],
+	// Shared base: 3-day release age, OSV security fixes, `^` ranges bumped,
+	// actions pinned to SHAs, Renovate merges only when every check is green.
+	extends: ["github>ardzero/sora-renovate"],
 
 	// Add future template branches here, then give each one its own
 	// "branch-only dependencies" rule below.
 	baseBranchPatterns: ["main", "bauth-drizzle"],
 
-	timezone: "UTC",
-	labels: ["dependencies"],
-	// keep package.json ranges in sync with what is installed: the template's
-	// package.json is what scaffolded projects start from
-	rangeStrategy: "bump",
-	// wait for new releases to settle (pulled or compromised versions)
-	minimumReleaseAge: "3 days",
-	// security fixes from the OSV database, free and skip the waiting period
-	osvVulnerabilityAlerts: true,
-	// Renovate itself merges only when every check is green; GitHub's native
-	// auto-merge would merge without checks, since main has no branch protection
-	platformAutomerge: false,
-
 	lockFileMaintenance: {
-		enabled: true,
-		automerge: true,
 		schedule: ["* 0-5 1 * *"],
 	},
 

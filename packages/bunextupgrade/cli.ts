@@ -510,7 +510,22 @@ async function main(): Promise<void> {
 
     s.start("Committing and pushing");
     try {
-        await execa("git", ["add", "-A"], { cwd });
+        // A backup kept in the commit is a full copy of the project, where
+        // root-anchored ignore rules (/node_modules, /.env.local) don't apply.
+        // Never commit its dependencies, env files or private keys.
+        await execa(
+            "git",
+            [
+                "add",
+                "-A",
+                "--",
+                ".",
+                `:(exclude,glob)${BACKUP_DIR}/**/node_modules/**`,
+                `:(exclude,glob)${BACKUP_DIR}/**/.env*`,
+                `:(exclude,glob)${BACKUP_DIR}/**/*.pem`,
+            ],
+            { cwd },
+        );
         await execa("git", ["commit", "-m", commitMessage], { cwd });
         await execa("git", ["push"], { cwd });
         s.stop("Committed and pushed");
