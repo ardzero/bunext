@@ -50,7 +50,7 @@ jobs:
                 commit_message: `chore: sync main into bauth-drizzle: ${commitTitle}`,
               });
               core.info("Auth template is up to date with main.");
-              core.setOutput("result", "merged");
+              core.setOutput("outcome", "merged");
             } catch (error) {
               if (error.status !== 409) throw error;
 
@@ -63,29 +63,32 @@ jobs:
               });
               if (existing.length > 0) {
                 core.warning(`Resolve sync conflicts in ${existing[0].html_url}`);
-                core.setOutput("result", "pr-open");
+                core.setOutput("outcome", "pr-open");
                 return;
               }
-              core.setOutput("result", "conflict");
+              core.info("Merge conflicts with main; resolving in the next steps.");
+              // not "result": github-script overwrites that output with the
+              // script's return value, which would skip the conflict steps
+              core.setOutput("outcome", "conflict");
             }
 
       # Conflicts limited to package.json/bun.lock (e.g. a Renovate bump next
       # to an auth-only dependency) are resolved here; anything else, or the
       # same value changed on both sides, falls through to a sync PR.
       - name: Checkout auth template
-        if: steps.merge.outputs.result == 'conflict'
+        if: steps.merge.outputs.outcome == 'conflict'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: bauth-drizzle
           fetch-depth: 0
 
       - name: Setup Bun
-        if: steps.merge.outputs.result == 'conflict'
+        if: steps.merge.outputs.outcome == 'conflict'
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
 
       - name: Resolve dependency-only conflicts
         id: resolve
-        if: steps.merge.outputs.result == 'conflict'
+        if: steps.merge.outputs.outcome == 'conflict'
         continue-on-error: true
         env:
           MAIN_SHA: ${{ steps.merge.outputs.main_sha }}
@@ -143,7 +146,7 @@ jobs:
           echo "::notice::Resolved dependency-only sync conflicts automatically"
 
       - name: Open a sync PR for manual resolution
-        if: steps.merge.outputs.result == 'conflict' && steps.resolve.outputs.resolved != 'true'
+        if: steps.merge.outputs.outcome == 'conflict' && steps.resolve.outputs.resolved != 'true'
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
         env:
           MAIN_SHA: ${{ steps.merge.outputs.main_sha }}
