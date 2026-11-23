@@ -71,5 +71,8 @@
 	],
 	"bun": {
 		"runtime": true
+	},
+	"overrides": {
+		"minimatch@^10.0.0": "11.0.9"
 	}
 }
