@@ -1,4 +1,22 @@
-import { ImageResponse } from "next/og";
+import { readFile } from "node:fs/promises";
+import { initWasm, Resvg } from "@resvg/resvg-wasm";
+import satori from "satori";
+
+const getRenderer = async () => {
+	const [font, wasm] = await Promise.all([
+		readFile(
+			new URL(
+				"@fontsource/geist/files/geist-latin-400-normal.woff",
+				import.meta.url,
+			),
+		),
+		readFile(new URL("@resvg/resvg-wasm/index_bg.wasm", import.meta.url)),
+	]);
+	await initWasm(wasm);
+	return font;
+};
+
+let renderer: ReturnType<typeof getRenderer> | undefined;
 
 // Image metadata
 export const size = {
@@ -11,16 +29,9 @@ export async function GenerateImage(params: {
 	title: string;
 	description?: string;
 }) {
-	//   // Fonts
-	//   const interSemiBold = fetch(
-	//     new URL('../fonts/Inter-SemiBold.ttf', import.meta.url)
-	//   ).then((res) => res.arrayBuffer())
-	//   const interLight = fetch(
-	//     new URL('../fonts/Inter-Light.ttf', import.meta.url)
-	//   ).then((res) => res.arrayBuffer())
-
-	return new ImageResponse(
-		// ImageResponse JSX element
+	renderer ??= getRenderer();
+	const font = await renderer;
+	const svg = await satori(
 		<div
 			style={{
 				fontSize: 160,
@@ -51,25 +62,25 @@ export async function GenerateImage(params: {
 				</span>
 			</div>
 		</div>,
-		// ImageResponse options
-		{
-			// For convenience, we can re-use the exported opengraph-image
-			// size config to also set the ImageResponse's width and height.
-			...size,
-			//   fonts: [
-			//     {
-			//       name: 'Inter',
-			//       data: await interSemiBold,
-			//       style: 'normal',
-			//       weight: 600,
-			//     },
-			//     {
-			//       name: 'Inter',
-			//       data: await interLight,
-			//       style: 'normal',
-			//       weight: 300,
-			//     },
-			//   ],
-		},
+		{ ...size, fonts: [{ name: "Geist", data: font, weight: 400 }] },
 	);
+	const resvg = new Resvg(svg, { fitTo: { mode: "width", value: size.width } });
+	try {
+		const png = resvg.render();
+		try {
+			return new Response(Uint8Array.from(png.asPng()), {
+				headers: {
+					"content-type": "image/png",
+					"cache-control":
+						process.env.NODE_ENV === "development"
+							? "no-cache, no-store"
+							: "public, immutable, no-transform, max-age=31536000",
+				},
+			});
+		} finally {
+			png.free();
+		}
+	} finally {
+		resvg.free();
+	}
 }

@@ -51,10 +51,16 @@ GitHub Actions commits that generate app content can also be skipped by this rul
 Security updates, lockfile maintenance, and Dependabot merges can deploy on
 branches eligible for deployment. Remove `ignoreCommand` to use the project's Vercel build settings instead.
 
-Vercel functions omit Sharp by default. If you use Bunext's custom image helper
-for runtime dimension inference or blur generation, set `BUNEXT_VERCEL_KEEP_SHARP=1`
-in Vercel for those deployments. Standard `next/image` optimization is handled by
-Vercel, and self-hosted Next builds keep Sharp.
+## Images
+
+Use `Image` from `@/components/utils/image` for automatic dimensions without
+Sharp. Use `BlurImage` from `@/components/utils/blur-image` when you need a
+server-generated blur placeholder. If you previously used the template's
+`<Image placeholder="blur" />` without a `blurDataURL`, switch to `BlurImage`.
+Standard `next/image` blur data still works with `Image`.
+
+Vercel handles standard `next/image` optimization. Self-hosted and standalone
+builds keep Sharp for the Next.js image optimizer.
 
 ## Tech Stack
 

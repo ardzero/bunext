@@ -26,15 +26,11 @@ const nextConfig: NextConfig = {
   },
 };
 
-// Vercel handles next/image optimization outside the app functions. Builds
-// still install Sharp so Next can generate blur data for static image imports.
-if (
-  process.env.VERCEL === "1" &&
-  process.env.BUNEXT_VERCEL_KEEP_SHARP !== "1" &&
-  nextConfig.output !== "standalone"
-) {
+// Vercel optimizes next/image on the platform. Keep the full server's Sharp
+// trace for self-hosting and leave individual blur route traces untouched.
+if (process.env.VERCEL === "1" && nextConfig.output !== "standalone") {
   nextConfig.outputFileTracingExcludes = {
-    "**": [
+    "next-server": [
       "./node_modules/sharp/**",
       "./node_modules/@img/sharp-*/**",
       "./node_modules/@img/colour/**",

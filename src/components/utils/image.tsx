@@ -3,22 +3,27 @@
  * - Optional alt (defaults: filename-based or "Picture Element")
  * - Width/height: if only width passed, height is derived from image aspect ratio; if neither passed, dimensions are inferred from the image (static import or server-side). If inference is not possible, width and height are required.
  * - cleanSrc: strips /public/ prefix from string srcs
- * - placeholder API: "blur" (server-generated blur hash), "shimmer" (SVG data URL), or custom data:image/... URL
+ * - placeholder API: standard next/image blur data, "shimmer" (SVG data URL), or custom data:image/... URL
  */
-import type React from "react";
 import NextImageComponent from "next/image";
 import type { ImageProps } from "next/image";
 import { getImageDimensions } from "@/actions/placeholder";
 import { shimmer, svgToBase64 } from "@/lib/utils";
 
-type ImgProps = Omit<ImageProps, "alt" | "width" | "height" | "placeholder"> & {
+export type BunextImageProps = Omit<
+	ImageProps,
+	"alt" | "width" | "height" | "placeholder"
+> & {
 	alt?: string;
 	width?: number;
 	height?: number;
 	placeholder?: "blur" | "color" | "shimmer" | "empty" | `data:image/${string}`;
 };
 
-type ImgPropsWithDimensions = Omit<ImgProps, "width" | "height"> & {
+type BunextImagePropsWithDimensions = Omit<
+	BunextImageProps,
+	"width" | "height"
+> & {
 	width: number;
 	height: number;
 };
@@ -28,7 +33,7 @@ const cleanSrc = (src: string): string => {
 	return src;
 };
 
-const toSrcString = (src: ImageProps["src"]): string =>
+export const toSrcString = (src: ImageProps["src"]): string =>
 	typeof src === "string" ? src : "default" in src ? src.default.src : src.src;
 
 const getStaticDimensions = (
@@ -43,7 +48,7 @@ const getStaticDimensions = (
 };
 
 const resolveDimensions = async (
-	props: ImgProps,
+	props: BunextImageProps,
 ): Promise<{ width: number; height: number }> => {
 	const { src, width: w, height: h } = props;
 	const staticDims = getStaticDimensions(src);
@@ -65,7 +70,13 @@ const resolveDimensions = async (
 	return { width: iw, height: ih };
 };
 
-const Img = ({ src, width, height, alt, ...props }: ImgPropsWithDimensions) => {
+const Img = ({
+	src,
+	width,
+	height,
+	alt,
+	...props
+}: BunextImagePropsWithDimensions) => {
 	const srcStr = toSrcString(src);
 	return (
 		<NextImageComponent
@@ -84,23 +95,10 @@ const Img = ({ src, width, height, alt, ...props }: ImgPropsWithDimensions) => {
 	);
 };
 
-const BlurImg = async (props: ImgPropsWithDimensions) => {
-	const { getPlaceholderImage } = await import("@/actions/placeholder");
-	const blurDataURL = await getPlaceholderImage(toSrcString(props.src));
-	return (
-		<Img
-			{...props}
-			placeholder="blur"
-			blurDataURL={blurDataURL}
-			alt={props.alt || ""}
-		/>
-	);
-};
-
 /**
  * Next/image wrapper with optional alt/width/height, dimension inference, and placeholder presets.
  *
- * @param props - See {@link ImgProps}
+ * @param props - See {@link BunextImageProps}
  * @param props.src - Image URL or static import (required)
  * @param props.alt - Optional. Defaults to filename (first 20 chars) or "Picture Element"
  * @param props.width - Optional. If set alone, height is derived from image aspect ratio
@@ -121,12 +119,15 @@ const BlurImg = async (props: ImgPropsWithDimensions) => {
  *  Blur placeholder
  * <Image src="/hero.jpg" width={800} height={600} placeholder="blur" />
  */
-export const Image = async (props: ImgProps) => {
+export const Image = async (props: BunextImageProps) => {
 	const { width, height } = await resolveDimensions(props);
-	const resolvedProps: ImgPropsWithDimensions = { ...props, width, height };
-	const imgComp: Record<string, React.ReactNode> = {
-		blur: <BlurImg {...resolvedProps} />,
-		shimmer: (
+	const resolvedProps: BunextImagePropsWithDimensions = {
+		...props,
+		width,
+		height,
+	};
+	if (props.placeholder === "shimmer") {
+		return (
 			<Img
 				{...resolvedProps}
 				placeholder={`data:image/svg+xml;base64,${svgToBase64(
@@ -134,11 +135,7 @@ export const Image = async (props: ImgProps) => {
 				)}`}
 				alt={props.alt || ""}
 			/>
-		),
-	};
-	return (
-		(props.placeholder && imgComp[props.placeholder]) || (
-			<Img {...resolvedProps} alt={props.alt || ""} />
-		)
-	);
+		);
+	}
+	return <Img {...resolvedProps} alt={props.alt || ""} />;
 };
