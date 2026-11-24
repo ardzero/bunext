@@ -1,5 +1,6 @@
 {
   "installCommand": "bun install",
+  "ignoreCommand": "sh scripts/vercel-ignore.sh",
   "buildCommand": "bun run build",
   "framework": "nextjs",
   "redirects": [{ "source": "/home", "destination": "/" }]
