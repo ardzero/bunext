@@ -22,6 +22,8 @@ case ${VERCEL_GIT_COMMIT_REF:-} in
 esac
 
 case ${VERCEL_GIT_COMMIT_AUTHOR_LOGIN:-} in
+  # Dependabot uses the same commit title for routine and security updates.
+  dependabot\[bot\]) exit 1 ;;
   *\[bot\]|renovate-bot)
     printf '%s\n' "$msg" | grep -qiE '\[security\]|vulnerab' && exit 1
     exit 0

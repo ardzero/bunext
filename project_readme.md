@@ -42,6 +42,13 @@ npm run dev
 
 > just replace `bun` with `npm` if you're using npm
 
+## Deploying on Vercel
+
+The default `ignoreCommand` in `vercel.json` skips documentation-only pushes,
+`[skip deploy]` commits, dependency-bot preview branches, and unmarked bot commits.
+Marked security bot commits and Dependabot merges build on branches eligible for
+deployment. Remove `ignoreCommand` to use the project's Vercel build settings instead.
+
 ## Tech Stack
 
 - [Nextjs 16](https://astro.build/)
