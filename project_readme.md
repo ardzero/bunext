@@ -66,8 +66,8 @@ such as `export const maxDuration = 15` in that page when the other pages use a
 different duration. Without it, every page Vercel groups with the blur page
 carries the same roughly 18 MB Sharp bundle.
 
-The OG helper renders with Geist and resvg. It does not fetch additional fonts
-or emoji assets for glyphs missing from Geist.
+The OG helper renders with Geist and resvg. For missing glyphs it fetches Noto
+font subsets and Twemoji assets as needed.
 
 Vercel handles standard `next/image` optimization. Self-hosted and standalone
 builds keep Sharp for the Next.js image optimizer.
