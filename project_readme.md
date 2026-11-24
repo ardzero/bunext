@@ -175,6 +175,27 @@ GitHub Actions commits that generate app content can also be skipped by this rul
 Security updates, lockfile maintenance, and Dependabot merges can deploy on
 branches eligible for deployment. Remove `ignoreCommand` to use the project's Vercel build settings instead.
 
+## Images
+
+Use `Image` from `@/components/utils/image` for automatic dimensions without
+Sharp. Use `BlurImage` from `@/components/utils/blur-image` when you need a
+server-generated blur placeholder. If you previously used the template's
+`<Image placeholder="blur" />` without a `blurDataURL`, switch to `BlurImage`.
+Standard `next/image` blur data still works with `Image`. Pass explicit dimensions
+for SVGs without declared dimensions or when their physical units need specific
+pixel sizing.
+
+On Vercel, give a page that renders `BlurImage` a distinct function configuration,
+such as `export const maxDuration = 15` in that page when the other pages use a
+different duration. Without it, every page Vercel groups with the blur page
+carries the same roughly 18 MB Sharp bundle.
+
+The OG helper renders with Geist and resvg. It does not fetch additional fonts
+or emoji assets for glyphs missing from Geist.
+
+Vercel handles standard `next/image` optimization. Self-hosted and standalone
+builds keep Sharp for the Next.js image optimizer.
+
 ## Tech Stack
 
 - [Nextjs 16](https://nextjs.org/)

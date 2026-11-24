@@ -58,16 +58,16 @@ const nextConfig: NextConfig = {
   },
 };
 
-if (process.env.VERCEL_PROJECT_ID === "prj_X6pJz4g5Mq8SoKnXnTg6oY2cAIHO") {
-  const sharpBinaries = [
-    "./node_modules/@img/sharp-*/lib/*.node",
-    "./node_modules/@img/sharp-libvips-*/lib/libvips-cpp.*",
-  ];
-
-  // The docs page traces its OG module but never renders the PNG itself.
-  // Route matches are partial, so Turbopack needs an explicit include for the OG child.
-  nextConfig.outputFileTracingExcludes = { "/docs": sharpBinaries };
-  nextConfig.outputFileTracingIncludes = { "/docs/opengraph-image*": sharpBinaries };
+// Vercel optimizes next/image on the platform. Keep the full server's Sharp
+// trace for self-hosting and leave individual blur route traces untouched.
+if (process.env.VERCEL === "1" && nextConfig.output !== "standalone") {
+  nextConfig.outputFileTracingExcludes = {
+    "next-server": [
+      "./node_modules/sharp/**",
+      "./node_modules/@img/sharp-*/**",
+      "./node_modules/@img/colour/**",
+    ],
+  };
 }
 
 export default nextConfig;
