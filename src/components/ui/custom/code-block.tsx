@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useTheme } from "next-themes";
-import { codeToHtml, type ShikiTransformer } from "shiki";
+import type { ShikiTransformer } from "shiki";
 import { cn } from "@/lib/utils";
 import { CopyButton } from "@/components/utils/copy";
 // to pick themes visit:
@@ -132,33 +132,38 @@ export function CodeBlock({
 
 	useEffect(() => {
 		let cancelled = false;
-		codeToHtml(code, {
-			lang: language,
-			themes: {
-				light: CODE_BLOCK_THEME.shiki.light,
-				dark: CODE_BLOCK_THEME.shiki.dark,
-			},
-			defaultColor: colorScheme,
-			structure: "classic",
-			transformers: transformer ? [transformer] : [],
-		}).then(
-			(out) => {
-				if (cancelled) return;
-				setHtml(out);
-				setLoaded(true);
-			},
-			() => {
-				if (cancelled) return;
-				setHtml(
-					buildFallbackHtml(code, {
-						highlightLines,
-						addedLines,
-						removedLines,
-					}),
-				);
-				setLoaded(true);
-			},
-		);
+		if (typeof window === "undefined") return;
+		import("shiki")
+			.then(({ codeToHtml }) =>
+				codeToHtml(code, {
+					lang: language,
+					themes: {
+						light: CODE_BLOCK_THEME.shiki.light,
+						dark: CODE_BLOCK_THEME.shiki.dark,
+					},
+					defaultColor: colorScheme,
+					structure: "classic",
+					transformers: transformer ? [transformer] : [],
+				}),
+			)
+			.then(
+				(out) => {
+					if (cancelled) return;
+					setHtml(out);
+					setLoaded(true);
+				},
+				() => {
+					if (cancelled) return;
+					setHtml(
+						buildFallbackHtml(code, {
+							highlightLines,
+							addedLines,
+							removedLines,
+						}),
+					);
+					setLoaded(true);
+				},
+			);
 		return () => {
 			cancelled = true;
 		};
