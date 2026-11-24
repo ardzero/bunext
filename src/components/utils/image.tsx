@@ -121,7 +121,7 @@ const Img = ({
  * @param props.alt - Optional. Defaults to filename (first 20 chars) or "Picture Element"
  * @param props.width - Optional. If set alone, height is derived from image aspect ratio
  * @param props.height - Optional. If set alone, width is derived from image aspect ratio
- * @param props.placeholder - Optional. "blur" (server blur), "shimmer" (SVG), or a data:image/... URL
+ * @param props.placeholder - Optional. "blur" with existing blur data, "shimmer" (SVG), or a data:image/... URL
  * @returns Promise that resolves to the rendered image (use in Server Components or with Suspense)
  * @throws Error when dimensions cannot be inferred and neither width nor height is provided
  *
