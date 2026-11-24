@@ -6,7 +6,7 @@ const getRenderer = async () => {
 	const [font, wasm] = await Promise.all([
 		readFile(
 			new URL(
-				"@fontsource/geist/files/geist-latin-400-normal.woff",
+				"next/dist/compiled/@vercel/og/Geist-Regular.ttf",
 				import.meta.url,
 			),
 		),
@@ -29,7 +29,10 @@ export async function GenerateImage(params: {
 	title: string;
 	description?: string;
 }) {
-	renderer ??= getRenderer();
+	renderer ??= getRenderer().catch((error: unknown) => {
+		renderer = undefined;
+		throw error;
+	});
 	const font = await renderer;
 	const svg = await satori(
 		<div

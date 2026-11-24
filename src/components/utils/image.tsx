@@ -10,15 +10,33 @@ import type { ImageProps } from "next/image";
 import { getImageDimensions } from "@/actions/placeholder";
 import { shimmer, svgToBase64 } from "@/lib/utils";
 
+type UseBlurImageForGeneratedBlur = {
+	placeholder: "blur";
+	blurDataURL: string;
+};
+
+type ImagePlaceholderProps =
+	| {
+			placeholder?:
+				Exclude<ImageProps["placeholder"], "blur"> | "color" | "shimmer";
+			blurDataURL?: string;
+	  }
+	| UseBlurImageForGeneratedBlur
+	| {
+			src: Exclude<ImageProps["src"], string>;
+			placeholder: "blur";
+			blurDataURL?: string;
+	  };
+
 export type BunextImageProps = Omit<
 	ImageProps,
-	"alt" | "width" | "height" | "placeholder"
-> & {
-	alt?: string;
-	width?: number;
-	height?: number;
-	placeholder?: "blur" | "color" | "shimmer" | "empty" | `data:image/${string}`;
-};
+	"alt" | "width" | "height" | "placeholder" | "blurDataURL"
+> &
+	ImagePlaceholderProps & {
+		alt?: string;
+		width?: number;
+		height?: number;
+	};
 
 type BunextImagePropsWithDimensions = Omit<
 	BunextImageProps,
@@ -116,10 +134,19 @@ const Img = ({
  * <Image src="/hero.jpg" width={800} />
  *
  * @example
- *  Blur placeholder
- * <Image src="/hero.jpg" width={800} height={600} placeholder="blur" />
+ *  Supply existing blur data
+ * <Image src="/hero.jpg" width={800} height={600} placeholder="blur" blurDataURL={dataUrl} />
  */
 export const Image = async (props: BunextImageProps) => {
+	if (
+		props.placeholder === "blur" &&
+		typeof props.src === "string" &&
+		!props.blurDataURL
+	) {
+		throw new Error(
+			'Import BlurImage from "@/components/utils/blur-image" to generate a blur placeholder, or pass blurDataURL.',
+		);
+	}
 	const { width, height } = await resolveDimensions(props);
 	const resolvedProps: BunextImagePropsWithDimensions = {
 		...props,

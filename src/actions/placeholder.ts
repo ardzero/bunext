@@ -1,4 +1,4 @@
-"use server";
+import "server-only";
 
 import { imageSize } from "image-size";
 import { readImageBuffer } from "@/lib/utils/read-image-buffer";
