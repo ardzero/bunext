@@ -1,7 +1,6 @@
 'use server';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import sharp from 'sharp';
 function bufferToBase64(buffer: Buffer): string {
     return `data:image/png;base64,${buffer.toString('base64')}`;
 }
@@ -22,6 +21,7 @@ export async function getPlaceholderImage(src: string) {
         const originalBuffer = await (src.startsWith('http')
             ? getFileBuffer(src)
             : getFileBufferLocal(src));
+        const { default: sharp } = await import('sharp');
         const resizedBuffer = await sharp(originalBuffer).resize(20).toBuffer();
         return bufferToBase64(resizedBuffer);
     } catch {
@@ -36,6 +36,7 @@ export async function getImageDimensions(
         const buffer = await (src.startsWith('http')
             ? getFileBuffer(src)
             : getFileBufferLocal(src));
+        const { default: sharp } = await import('sharp');
         const { width, height } = await sharp(buffer).metadata();
         if (width == null || height == null) return null;
         return { width, height };
