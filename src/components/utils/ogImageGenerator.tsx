@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { initWasm, Resvg } from "@resvg/resvg-wasm";
 import satori from "satori";
+import { loadAdditionalAsset } from "./og-assets";
 
 const getRenderer = async () => {
 	const [font, wasm] = await Promise.all([
@@ -17,6 +18,10 @@ const getRenderer = async () => {
 };
 
 let renderer: ReturnType<typeof getRenderer> | undefined;
+
+// The renderer shapes decomposed Bengali vowel signs without a dotted circle.
+const normalizeBengali = (text: string) =>
+	text.replace(/\p{Script=Bengali}+/gu, (segment) => segment.normalize("NFD"));
 
 // Image metadata
 export const size = {
@@ -59,13 +64,19 @@ export async function GenerateImage(params: {
 					gap: 4,
 				}}
 			>
-				<span style={{ fontWeight: 600 }}>{params.title}</span>
+				<span style={{ fontWeight: 600 }}>
+					{normalizeBengali(params.title)}
+				</span>
 				<span style={{ fontSize: 40, fontWeight: 300 }}>
-					{params.description}
+					{params.description && normalizeBengali(params.description)}
 				</span>
 			</div>
 		</div>,
-		{ ...size, fonts: [{ name: "Geist", data: font, weight: 400 }] },
+		{
+			...size,
+			fonts: [{ name: "Geist", data: font, weight: 400 }],
+			loadAdditionalAsset,
+		},
 	);
 	const resvg = new Resvg(svg, { fitTo: { mode: "width", value: size.width } });
 	try {
