@@ -19,10 +19,6 @@ const getRenderer = async () => {
 
 let renderer: ReturnType<typeof getRenderer> | undefined;
 
-// The renderer shapes decomposed Bengali vowel signs without a dotted circle.
-const normalizeBengali = (text: string) =>
-	text.replace(/\p{Script=Bengali}+/gu, (segment) => segment.normalize("NFD"));
-
 // Image metadata
 export const size = {
 	width: 1200,
@@ -31,7 +27,6 @@ export const size = {
 
 /**
  * Generates an OG PNG with Geist, Noto subset fallback, and Twemoji.
- * Satori's shaping can still render Bengali conjuncts as separate characters.
  */
 export async function GenerateImage(params: {
 	title: string;
@@ -67,11 +62,9 @@ export async function GenerateImage(params: {
 					gap: 4,
 				}}
 			>
-				<span style={{ fontWeight: 600 }}>
-					{normalizeBengali(params.title)}
-				</span>
+				<span style={{ fontWeight: 600 }}>{params.title}</span>
 				<span style={{ fontSize: 40, fontWeight: 300 }}>
-					{params.description && normalizeBengali(params.description)}
+					{params.description}
 				</span>
 			</div>
 		</div>

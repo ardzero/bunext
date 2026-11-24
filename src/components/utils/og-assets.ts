@@ -42,11 +42,7 @@ const loadFont = async (
 ): Promise<Font> => {
 	const cssUrl = new URL("https://fonts.googleapis.com/css2");
 	cssUrl.searchParams.set("family", family);
-	// Include decomposed vowel signs used when the font shapes the text.
-	cssUrl.searchParams.set(
-		"text",
-		[...new Set(text + text.normalize("NFD"))].join(""),
-	);
+	cssUrl.searchParams.set("text", text);
 	// Google serves TTF to this user agent. Satori doesn't accept WOFF2.
 	const css = await fetchAsset(cssUrl, { "User-Agent": "Mozilla/5.0" });
 	const match = (await css.text()).match(
