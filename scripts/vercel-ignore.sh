@@ -12,73 +12,70 @@ else
   fi
 fi
 
-message=${VERCEL_GIT_COMMIT_MESSAGE:-}
-subject=$(printf "%s\n" "$message" | head -n1)
+msg=${VERCEL_GIT_COMMIT_MESSAGE:-}
 prev=${VERCEL_GIT_PREVIOUS_SHA:-}
 
-printf '%s\n' "$subject" | grep -qF '[skip deploy]' && exit 0
+# Explicit opt-outs only match the commit subject.
+printf '%s\n' "$msg" | head -n 1 | grep -qF '[skip deploy]' && exit 0
 
-contains_deploy_marker() {
-  printf '%s\n' "$1" | grep -qiE '\[security\]|vulnerab|lock[ -]file maintenance'
-}
-
-case ${VERCEL_GIT_COMMIT_REF:-} in
-  dependabot/*) exit 0 ;;
-  renovate/*)
-    contains_deploy_marker "$message"
-    [ "$?" -eq 1 ] && exit 0
-    exit 1
-    ;;
-esac
-
-is_automation_bot() {
+is_automation_login() {
   case $1 in
-    *renovate*\[bot\]|renovate-bot|github-actions\[bot\]) return 0 ;;
+    *renovate*|github-actions\[bot\]) return 0 ;;
     *) return 1 ;;
   esac
 }
 
+needs_bot_build() {
+  printf '%s\n' "$1" | grep -qiE '\[security\]|vulnerab|lock[ -]file[ -]maintenance'
+}
+
+# Routine Renovate previews skip, but security and lock maintenance get a build.
+case ${VERCEL_GIT_COMMIT_REF:-} in
+  dependabot/*) exit 0 ;;
+  renovate/*)
+    needs_bot_build "$msg" && exit 1
+    needs_bot_build "$VERCEL_GIT_COMMIT_REF" && exit 1
+    exit 0
+    ;;
+esac
+
 # Dependabot security fixes do not reliably have a marker.
 [ "${VERCEL_GIT_COMMIT_AUTHOR_LOGIN:-}" = 'dependabot[bot]' ] && exit 1
 
-# GitHub supplies a full commit SHA. Never interpret user-facing Git ref syntax.
-case ${#prev} in 40|64) ;; *) exit 1 ;; esac
-case $prev in *[!0-9a-fA-F]*) exit 1 ;; esac
-git merge-base --is-ancestor "$prev" HEAD || exit 1
+# Vercel supplies a full GitHub commit SHA, not a Git revision expression.
+[ "${#prev}" -eq 40 ] || exit 1
+case $prev in *[!0123456789abcdefABCDEF]*) exit 1 ;; esac
 
-if is_automation_bot "${VERCEL_GIT_COMMIT_AUTHOR_LOGIN:-}"; then
-  # A reachable first parent doesn't rule out clipped side-branch history.
+# Skip only a recent, uninterrupted run of routine automation commits.
+if is_automation_login "${VERCEL_GIT_COMMIT_AUTHOR_LOGIN:-}"; then
+  needs_bot_build "$msg" && exit 1
+  git merge-base --is-ancestor "$prev" HEAD || exit 1
+  deployed_at=$(git log -1 --format=%ct "$prev") || exit 1
+  now=$(date +%s) || exit 1
+  [ "$((now - deployed_at))" -le 604800 ] || exit 1
+
+  # A shallow side branch can hide earlier commits even if the base is reachable.
   roots=$(git rev-list --max-parents=0 "$prev..HEAD") || exit 1
   [ -z "$roots" ] || exit 1
-  last_deploy=$(git log -1 --format=%ct "$prev") || exit 1
-  now=$(date +%s) || exit 1
-  case $last_deploy in ''|*[!0-9]*) exit 1 ;; esac
-  age=$((now - last_deploy))
-  [ "$age" -ge 0 ] && [ "$age" -le 604800 ] || exit 1
-
-  # A skipped or failed deployment may have left a security fix in the range.
   commits=$(git log --format=%H "$prev..HEAD") || exit 1
+  newline='
+'
   for commit in $commits; do
-    email=$(git show -s --format=%ae "$commit") || exit 1
+    entry=$(git log -1 --format='%ae%n%B' "$commit") || exit 1
+    email=${entry%%"$newline"*}
     case $email in
-      *@users.noreply.github.com) login=${email%@users.noreply.github.com} ;;
+      *@users.noreply.github.com)
+        login=${email%@*}
+        is_automation_login "${login#*+}" || exit 1
+        ;;
       *) exit 1 ;;
     esac
-    case $login in
-      *+*)
-        case ${login%%+*} in ''|*[!0-9]*) exit 1 ;; esac
-        login=${login#*+}
-        ;;
-    esac
-    is_automation_bot "$login" || exit 1
-
-    message=$(git show -s --format=%B "$commit") || exit 1
-    contains_deploy_marker "$message"
-    [ "$?" -eq 1 ] || exit 1
+    needs_bot_build "${entry#*"$newline"}" && exit 1
   done
   exit 0
 fi
 
-# Compare the entire push to the last deployment. Build if the SHA cannot be diffed.
+# Skip when nothing the site uses changed since the last deployment (README/docs-only pushes).
+# A missing or unreachable previous SHA makes git diff fail, so the build proceeds.
 git diff --quiet "$prev" HEAD -- . ':!*.md' ':!docs/' ':!.github/' ':!.agents/' ':!.vscode/' "$@" && exit 0
 exit 1
