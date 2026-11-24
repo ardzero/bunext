@@ -21,7 +21,8 @@ const notoFamilies: Record<string, string[]> = {
 };
 
 type OgAsset = string | Font[];
-const assets = new Map<string, Promise<OgAsset | undefined>>();
+type CachedAsset = string | Font;
+const assets = new Map<string, Promise<CachedAsset | undefined>>();
 const assetCacheLimit = 128;
 
 const fetchAsset = async (url: URL, headers?: HeadersInit) => {
@@ -57,67 +58,74 @@ const loadFont = async (
 		throw new Error("Unexpected OG font origin.");
 
 	const response = await fetchAsset(fontUrl);
+	const data = await response.arrayBuffer();
+	const signature = data.byteLength >= 12 ? new DataView(data).getUint32(0) : 0;
+	if (signature !== 0x00010000 && signature !== 0x4f54544f) {
+		throw new Error("Invalid OG font subset.");
+	}
 	return {
 		name: `${family} ${text}`,
-		data: await response.arrayBuffer(),
+		data,
 		weight: 400,
 		style: "normal",
 		lang: ["unknown", "symbol", "math"].includes(code) ? undefined : code,
 	};
 };
 
-const loadAsset = async (
-	code: string,
-	text: string,
-): Promise<OgAsset | undefined> => {
-	if (code === "emoji") {
-		const sequence = text.includes("\u200d")
-			? text
-			: text.replaceAll("\ufe0f", "");
-		const icon = Array.from(sequence, (character) =>
-			character.codePointAt(0)?.toString(16),
-		).join("-");
-		const response = await fetchAsset(
-			new URL(
-				`https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/${icon}.svg`,
-			),
-		);
-		return `data:image/svg+xml;base64,${Buffer.from(await response.text()).toString("base64")}`;
-	}
-
-	const fonts = await Promise.allSettled(
-		code
-			.split("|")
-			.flatMap((language) =>
-				(notoFamilies[language] ?? []).map((suffix) =>
-					loadFont(
-						language,
-						suffix ? `Noto Sans ${suffix}` : "Noto Sans",
-						text,
-					),
-				),
-			),
+const loadEmoji = async (text: string) => {
+	const sequence = text.includes("\u200d")
+		? text
+		: text.replaceAll("\ufe0f", "");
+	const icon = Array.from(sequence, (character) =>
+		character.codePointAt(0)?.toString(16),
+	).join("-");
+	const response = await fetchAsset(
+		new URL(
+			`https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/${icon}.svg`,
+		),
 	);
-	const available = fonts.flatMap((font) =>
-		font.status === "fulfilled" ? [font.value] : [],
-	);
-	return available.length ? available : undefined;
+	return `data:image/svg+xml;base64,${Buffer.from(await response.text()).toString("base64")}`;
 };
 
-export const loadAdditionalAsset = async (
-	code: string,
-	text: string,
-): Promise<OgAsset> => {
-	const key = JSON.stringify([code, text]);
+const getCachedAsset = async (
+	key: string,
+	load: () => Promise<CachedAsset>,
+) => {
 	let pending = assets.get(key);
 	if (!pending) {
 		const oldestKey = assets.keys().next().value;
 		if (assets.size >= assetCacheLimit && oldestKey !== undefined)
 			assets.delete(oldestKey);
-		pending = loadAsset(code, text).catch(() => undefined);
+		pending = load().catch(() => undefined);
 		assets.set(key, pending);
 	}
 	const asset = await pending;
 	if (asset === undefined && assets.get(key) === pending) assets.delete(key);
-	return asset ?? [];
+	return asset;
+};
+
+export const clearAdditionalAssets = () => assets.clear();
+
+export const loadAdditionalAsset = async (
+	code: string,
+	text: string,
+): Promise<OgAsset> => {
+	if (code === "emoji") {
+		const emoji = await getCachedAsset(JSON.stringify([code, text]), () =>
+			loadEmoji(text),
+		);
+		return typeof emoji === "string" ? emoji : [];
+	}
+
+	const fonts = await Promise.all(
+		code.split("|").flatMap((language) =>
+			(notoFamilies[language] ?? []).map((suffix) => {
+				const family = suffix ? `Noto Sans ${suffix}` : "Noto Sans";
+				return getCachedAsset(JSON.stringify([language, family, text]), () =>
+					loadFont(language, family, text),
+				);
+			}),
+		),
+	);
+	return fonts.filter((font): font is Font => typeof font === "object");
 };
