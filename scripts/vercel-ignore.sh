@@ -12,18 +12,28 @@ else
   fi
 fi
 
-subject=$(printf "%s\n" "${VERCEL_GIT_COMMIT_MESSAGE:-}" | head -n1)
+message=${VERCEL_GIT_COMMIT_MESSAGE:-}
+subject=$(printf "%s\n" "$message" | head -n1)
 prev=${VERCEL_GIT_PREVIOUS_SHA:-}
 
 printf '%s\n' "$subject" | grep -qF '[skip deploy]' && exit 0
 
+contains_deploy_marker() {
+  printf '%s\n' "$1" | grep -qiE '\[security\]|vulnerab|lock[ -]file maintenance'
+}
+
 case ${VERCEL_GIT_COMMIT_REF:-} in
-  renovate/*|dependabot/*) exit 0 ;;
+  dependabot/*) exit 0 ;;
+  renovate/*)
+    contains_deploy_marker "$message"
+    [ "$?" -eq 1 ] && exit 0
+    exit 1
+    ;;
 esac
 
 is_automation_bot() {
   case $1 in
-    *renovate*|github-actions\[bot\]) return 0 ;;
+    *renovate*\[bot\]|renovate-bot|github-actions\[bot\]) return 0 ;;
     *) return 1 ;;
   esac
 }
@@ -31,12 +41,20 @@ is_automation_bot() {
 # Dependabot security fixes do not reliably have a marker.
 [ "${VERCEL_GIT_COMMIT_AUTHOR_LOGIN:-}" = 'dependabot[bot]' ] && exit 1
 
+# GitHub supplies a full commit SHA. Never interpret user-facing Git ref syntax.
+case ${#prev} in 40|64) ;; *) exit 1 ;; esac
+case $prev in *[!0-9a-fA-F]*) exit 1 ;; esac
+git merge-base --is-ancestor "$prev" HEAD || exit 1
+
 if is_automation_bot "${VERCEL_GIT_COMMIT_AUTHOR_LOGIN:-}"; then
-  [ -n "$prev" ] && git merge-base --is-ancestor "$prev" HEAD || exit 1
+  # A reachable first parent doesn't rule out clipped side-branch history.
+  roots=$(git rev-list --max-parents=0 "$prev..HEAD") || exit 1
+  [ -z "$roots" ] || exit 1
   last_deploy=$(git log -1 --format=%ct "$prev") || exit 1
   now=$(date +%s) || exit 1
   case $last_deploy in ''|*[!0-9]*) exit 1 ;; esac
-  [ "$((now - last_deploy))" -le 604800 ] || exit 1
+  age=$((now - last_deploy))
+  [ "$age" -ge 0 ] && [ "$age" -le 604800 ] || exit 1
 
   # A skipped or failed deployment may have left a security fix in the range.
   commits=$(git log --format=%H "$prev..HEAD") || exit 1
@@ -55,12 +73,12 @@ if is_automation_bot "${VERCEL_GIT_COMMIT_AUTHOR_LOGIN:-}"; then
     is_automation_bot "$login" || exit 1
 
     message=$(git show -s --format=%B "$commit") || exit 1
-    printf '%s\n' "$message" | grep -qiE '\[security\]|vulnerab|lock[ -]file maintenance'
+    contains_deploy_marker "$message"
     [ "$?" -eq 1 ] || exit 1
   done
   exit 0
 fi
 
 # Compare the entire push to the last deployment. Build if the SHA cannot be diffed.
-[ -n "$prev" ] && git diff --quiet "$prev" HEAD -- . ':!*.md' ':!docs/' ':!.github/' ':!.agents/' ':!.vscode/' "$@" && exit 0
+git diff --quiet "$prev" HEAD -- . ':!*.md' ':!docs/' ':!.github/' ':!.agents/' ':!.vscode/' "$@" && exit 0
 exit 1

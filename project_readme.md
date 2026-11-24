@@ -45,8 +45,9 @@ npm run dev
 ## Deploying on Vercel
 
 The default `ignoreCommand` in `vercel.json` skips documentation-only pushes,
-`[skip deploy]` commits, Renovate and Dependabot preview branches, and routine Renovate or
+`[skip deploy]` commits, routine Renovate and all Dependabot preview branches, and routine Renovate or
 GitHub Actions updates when the deployed commit is at most seven days old.
+GitHub Actions commits that generate app content can also be skipped by this rule.
 Security updates, lockfile maintenance, and Dependabot merges can deploy on
 branches eligible for deployment. Remove `ignoreCommand` to use the project's Vercel build settings instead.
 
