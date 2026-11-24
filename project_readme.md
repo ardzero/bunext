@@ -166,6 +166,13 @@ Preview deployments run as production, so they need the same variables as produc
 - **Shared databases share users.** Pointing Preview at your local database is fine for a quick test, but production should have its own (a Neon branch works).
 - **Env changes need a new deployment.** Variables apply only to deployments built after the change, so redeploy after adding or editing them.
 
+## Deploying on Vercel
+
+The default `ignoreCommand` in `vercel.json` skips documentation-only pushes,
+`[skip deploy]` commits, dependency-bot preview branches, and unmarked bot commits.
+Marked security bot commits and Dependabot merges build on branches eligible for
+deployment. Remove `ignoreCommand` to use the project's Vercel build settings instead.
+
 ## Tech Stack
 
 - [Nextjs 16](https://nextjs.org/)
