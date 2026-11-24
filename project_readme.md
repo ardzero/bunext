@@ -169,9 +169,11 @@ Preview deployments run as production, so they need the same variables as produc
 ## Deploying on Vercel
 
 The default `ignoreCommand` in `vercel.json` skips documentation-only pushes,
-`[skip deploy]` commits, dependency-bot preview branches, and unmarked bot commits.
-Marked security bot commits and Dependabot merges build on branches eligible for
-deployment. Remove `ignoreCommand` to use the project's Vercel build settings instead.
+`[skip deploy]` commits, routine Renovate and all Dependabot preview branches, and routine Renovate or
+GitHub Actions updates when the deployed commit is at most seven days old.
+GitHub Actions commits that generate app content can also be skipped by this rule.
+Security updates, lockfile maintenance, and Dependabot merges can deploy on
+branches eligible for deployment. Remove `ignoreCommand` to use the project's Vercel build settings instead.
 
 ## Tech Stack
 
