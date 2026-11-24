@@ -1,5 +1,10 @@
 import { getPlaceholderImage } from "@/actions/blur-placeholder";
-import { Image, toSrcString, type BunextImageProps } from "./image";
+import {
+	getStaticImageData,
+	Image,
+	toSrcString,
+	type BunextImageProps,
+} from "./image";
 
 /**
  * Generates blur data on the server with Sharp when the source has none.
@@ -11,8 +16,7 @@ export const BlurImage = async (
 	props: Omit<BunextImageProps, "placeholder" | "blurDataURL">,
 ) => {
 	const { src } = props;
-	const staticImage =
-		typeof src === "string" ? undefined : "default" in src ? src.default : src;
+	const staticImage = getStaticImageData(src);
 	const blurDataURL =
 		staticImage?.blurDataURL ?? (await getPlaceholderImage(toSrcString(src)));
 	return (

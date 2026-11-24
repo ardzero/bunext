@@ -51,18 +51,15 @@ const cleanSrc = (src: string): string => {
 	return src;
 };
 
-export const toSrcString = (src: ImageProps["src"]): string =>
-	typeof src === "string" ? src : "default" in src ? src.default.src : src.src;
+export const getStaticImageData = (src: ImageProps["src"]) =>
+	typeof src === "string" ? undefined : "default" in src ? src.default : src;
 
-const getStaticDimensions = (
-	src: ImageProps["src"],
-): { width: number; height: number } | null => {
-	if (typeof src === "string") return null;
-	const data = "default" in src ? src.default : src;
-	const w = data.width;
-	const h = data.height;
-	if (typeof w !== "number" || typeof h !== "number") return null;
-	return { width: w, height: h };
+export const toSrcString = (src: ImageProps["src"]): string =>
+	typeof src === "string" ? src : ("default" in src ? src.default : src).src;
+
+const getStaticDimensions = (src: ImageProps["src"]) => {
+	const data = getStaticImageData(src);
+	return data && { width: data.width, height: data.height };
 };
 
 const resolveDimensions = async (
@@ -140,8 +137,8 @@ const Img = ({
 export const Image = async (props: BunextImageProps) => {
 	if (
 		props.placeholder === "blur" &&
-		typeof props.src === "string" &&
-		!props.blurDataURL
+		!props.blurDataURL &&
+		!getStaticImageData(props.src)?.blurDataURL
 	) {
 		throw new Error(
 			'Import BlurImage from "@/components/utils/blur-image" to generate a blur placeholder, or pass blurDataURL.',
