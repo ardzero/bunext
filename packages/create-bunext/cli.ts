@@ -16,6 +16,7 @@ const PATHS_TO_REMOVE: string[] = [
     "create-bunext",
     "packages",
     ".github/workflows",
+    ".github/scripts/vercel-ignore.sh",
     "MAINTAINERS.md",
     "docs/bauth-drizzle-handoff.md",
     "src/app/(index)/docs",
